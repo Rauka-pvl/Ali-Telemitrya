@@ -122,8 +122,8 @@ class RoomController extends Controller
         $cutoff = now()->subSeconds(self::ONLINE_TTL_SECONDS)->timestamp;
 
         return collect($users)
-            ->filter(fn (array $user): bool => ($user['lastSeen'] ?? 0) >= $cutoff)
-            ->mapWithKeys(fn (array $user): array => [$user['userId'] => $user])
+            ->filter(fn(array $user): bool => ($user['lastSeen'] ?? 0) >= $cutoff)
+            ->mapWithKeys(fn(array $user): array => [$user['userId'] => $user])
             ->all();
     }
 
@@ -136,7 +136,7 @@ class RoomController extends Controller
         Cache::put($this->cacheKey($roomId), $users, now()->addMinutes(10));
 
         return collect($users)
-            ->map(fn (array $user): array => [
+            ->map(fn(array $user): array => [
                 'userId' => $user['userId'],
                 'name' => $user['name'],
             ])
