@@ -7,6 +7,8 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+Route::get('/room/tele/{roomId}', [RoomController::class, 'telemetry']);
+Route::get('/room/mic/{roomId}', [RoomController::class, 'mic']);
 Route::get('/room/{roomId}', [RoomController::class, 'show']);
 Route::post('/room/{roomId}/join', [RoomController::class, 'join']);
 Route::post('/room/{roomId}/heartbeat', [RoomController::class, 'heartbeat']);

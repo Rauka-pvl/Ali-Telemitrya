@@ -13,6 +13,16 @@ class RoomController extends Controller
 {
     private const ONLINE_TTL_SECONDS = 45;
 
+    public function telemetry(string $roomId): View
+    {
+        return view('room', ['roomId' => $roomId]);
+    }
+
+    public function mic(string $roomId): View
+    {
+        return view('room-mic', ['roomId' => $roomId]);
+    }
+
     public function show(string $roomId): View
     {
         return view('room', ['roomId' => $roomId]);
