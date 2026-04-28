@@ -12,6 +12,7 @@ return new class extends Migration
             $table->id();
             $table->string('room_id', 120)->unique();
             $table->timestamps();
+            // 12
         });
     }
 
