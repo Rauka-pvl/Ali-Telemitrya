@@ -16,7 +16,14 @@
 <body>
 <h1>Mic Room: {{ $roomId }}</h1>
 <div class="row">
+    <input id="nameInput" type="text" maxlength="40" placeholder="Your name">
+    <button id="joinBtn">Join as Player</button>
     <button id="micBtn">Enable Microphone</button>
+</div>
+
+<div class="card">
+    <strong>Player status</strong>
+    <div id="playerLog" class="mono">Not joined</div>
 </div>
 
 <div class="card">
@@ -41,6 +48,14 @@
 
 <script>
     window.addEventListener('load', () => {
+        const roomId = @json($roomId);
+        const clientId = localStorage.getItem(`mic_client_id_${roomId}`) ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        localStorage.setItem(`mic_client_id_${roomId}`, clientId);
+        let playerIndex = null;
+
+        const nameInput = document.getElementById('nameInput');
+        const joinBtn = document.getElementById('joinBtn');
+        const playerLog = document.getElementById('playerLog');
         const micBtn = document.getElementById('micBtn');
         const permissionLog = document.getElementById('permissionLog');
         const hzLog = document.getElementById('hzLog');
@@ -54,6 +69,8 @@
         let stream = null;
         let animationFrameId = null;
         let smoothedHz = null;
+        let lastSentAt = 0;
+        let heartbeatTimer = null;
 
         const SILENCE_THRESHOLD = 20;
         const SMOOTHING_ALPHA = 0.2;
@@ -133,10 +150,40 @@
                     .join(' | ');
             }
 
+            const dominantHz = peaks.length > 0 ? peaks[0].hz : null;
+            const dominantAmplitude = peaks.length > 0 ? peaks[0].value : 0;
+            const normalizedLevel = Math.min(1, dominantAmplitude / 255);
+            const now = Date.now();
+
+            if (playerIndex && now - lastSentAt >= 100) {
+                lastSentAt = now;
+
+                fetch(`/room/${roomId}/mic-level`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    },
+                    body: JSON.stringify({
+                        clientId,
+                        level: normalizedLevel,
+                        hz: dominantHz,
+                        ts: now,
+                    }),
+                }).catch((error) => {
+                    console.error('Mic level send failed', error);
+                });
+            }
+
             animationFrameId = window.requestAnimationFrame(renderLoop);
         };
 
         const enableMic = async () => {
+            if (!playerIndex) {
+                alert('Join first');
+                return;
+            }
+
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                 permissionLog.textContent = 'Microphone API is not supported in this browser.';
                 return;
@@ -173,6 +220,49 @@
             });
         });
 
+        joinBtn.addEventListener('click', async () => {
+            const name = nameInput.value.trim();
+            if (!name) {
+                alert('Введите имя');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/room/${roomId}/player/join`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    },
+                    body: JSON.stringify({ clientId, name }),
+                });
+
+                const data = await response.json();
+                if (!response.ok || !data.ok) {
+                    throw new Error(data.message ?? 'Join failed');
+                }
+
+                playerIndex = data.playerIndex;
+                playerLog.textContent = `Connected as P${playerIndex}: ${name}`;
+                joinBtn.disabled = true;
+                nameInput.disabled = true;
+
+                if (heartbeatTimer) clearInterval(heartbeatTimer);
+                heartbeatTimer = setInterval(() => {
+                    fetch(`/room/${roomId}/player/heartbeat`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        },
+                        body: JSON.stringify({ clientId }),
+                    }).catch(() => {});
+                }, 15000);
+            } catch (error) {
+                playerLog.textContent = `Join error: ${error?.message ?? error}`;
+            }
+        });
+
         window.addEventListener('beforeunload', () => {
             if (animationFrameId) {
                 window.cancelAnimationFrame(animationFrameId);
@@ -188,6 +278,18 @@
 
             if (audioContext) {
                 audioContext.close();
+            }
+
+            if (playerIndex) {
+                fetch(`/room/${roomId}/player/leave`, {
+                    method: 'POST',
+                    keepalive: true,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    },
+                    body: JSON.stringify({ clientId }),
+                });
             }
         });
     });

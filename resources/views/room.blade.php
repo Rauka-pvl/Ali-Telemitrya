@@ -15,9 +15,16 @@
     </style>
 </head>
 <body>
-<h1>Room: {{ $roomId }}</h1>
+<h1>Telemetry Room: {{ $roomId }}</h1>
 <div class="row">
+    <input id="nameInput" type="text" maxlength="40" placeholder="Your name">
+    <button id="joinBtn">Join as Player</button>
     <button id="motionBtn">Enable Telemetry</button>
+</div>
+
+<div class="card">
+    <strong>Player status</strong>
+    <div id="playerLog" class="mono">Not joined</div>
 </div>
 
 <div class="card">
@@ -37,12 +44,41 @@
 
 <script>
     window.addEventListener('load', () => {
+        const roomId = @json($roomId);
+        const clientId = localStorage.getItem(`tele_client_id_${roomId}`) ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        localStorage.setItem(`tele_client_id_${roomId}`, clientId);
+        let playerIndex = null;
+
+        const nameInput = document.getElementById('nameInput');
+        const joinBtn = document.getElementById('joinBtn');
+        const playerLog = document.getElementById('playerLog');
         const motionBtn = document.getElementById('motionBtn');
         const permissionLog = document.getElementById('permissionLog');
         const motionLog = document.getElementById('motionLog');
         const orientationLog = document.getElementById('orientationLog');
 
         let motionEnabled = false;
+        let lastSentAt = 0;
+        let heartbeatTimer = null;
+
+        const sendMotion = async (x, y, z, magnitude) => {
+            if (!playerIndex) return;
+            await fetch(`/room/${roomId}/motion`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                },
+                body: JSON.stringify({
+                    clientId,
+                    x,
+                    y,
+                    z,
+                    magnitude,
+                    ts: Date.now(),
+                }),
+            });
+        };
 
         const onDeviceMotion = (event) => {
             if (!motionEnabled) {
@@ -55,6 +91,14 @@
             const magnitude = Math.sqrt((x * x) + (y * y) + (z * z));
 
             motionLog.textContent = `x=${x.toFixed(3)} | y=${y.toFixed(3)} | z=${z.toFixed(3)} | magnitude=${magnitude.toFixed(3)} | ${new Date().toLocaleTimeString()}`;
+
+            const now = Date.now();
+            if (now - lastSentAt >= 80) {
+                lastSentAt = now;
+                sendMotion(x, y, z, magnitude).catch((error) => {
+                    console.error('Motion send failed', error);
+                });
+            }
         };
 
         const onDeviceOrientation = (event) => {
@@ -70,6 +114,11 @@
         };
 
         const enableMotion = async () => {
+            if (!playerIndex) {
+                alert('Join first');
+                return;
+            }
+
             const requestPermissionIfNeeded = async (EventCtor) => {
                 if (typeof EventCtor === 'undefined'
                     || typeof EventCtor.requestPermission !== 'function') {
@@ -101,6 +150,62 @@
             enableMotion().catch((error) => {
                 console.error('Permission error', error);
                 permissionLog.textContent = `Error: ${error?.message ?? error}`;
+            });
+        });
+
+        joinBtn.addEventListener('click', async () => {
+            const name = nameInput.value.trim();
+            if (!name) {
+                alert('Введите имя');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/room/${roomId}/player/join`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    },
+                    body: JSON.stringify({ clientId, name }),
+                });
+
+                const data = await response.json();
+                if (!response.ok || !data.ok) {
+                    throw new Error(data.message ?? 'Join failed');
+                }
+
+                playerIndex = data.playerIndex;
+                playerLog.textContent = `Connected as P${playerIndex}: ${name}`;
+                joinBtn.disabled = true;
+                nameInput.disabled = true;
+
+                if (heartbeatTimer) clearInterval(heartbeatTimer);
+                heartbeatTimer = setInterval(() => {
+                    fetch(`/room/${roomId}/player/heartbeat`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        },
+                        body: JSON.stringify({ clientId }),
+                    }).catch(() => {});
+                }, 15000);
+            } catch (error) {
+                playerLog.textContent = `Join error: ${error?.message ?? error}`;
+            }
+        });
+
+        window.addEventListener('beforeunload', () => {
+            if (!playerIndex) return;
+            fetch(`/room/${roomId}/player/leave`, {
+                method: 'POST',
+                keepalive: true,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                },
+                body: JSON.stringify({ clientId }),
             });
         });
     });
