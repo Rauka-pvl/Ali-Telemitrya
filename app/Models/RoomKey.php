@@ -8,5 +8,6 @@ class RoomKey extends Model
 {
     protected $fillable = [
         'room_id',
+        'name',
     ];
 }

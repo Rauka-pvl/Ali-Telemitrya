@@ -266,6 +266,35 @@ class RoomController extends Controller
         return response()->json(['ok' => true]);
     }
 
+    public function apiAuth(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'room_id' => ['nullable', 'string', 'max:120'],
+            'room_key' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        $roomId = $validated['room_id'] ?? $validated['room_key'] ?? null;
+        if (! $roomId) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'room_id is required',
+            ], 422);
+        }
+
+        $room = RoomKey::query()->where('room_id', $roomId)->first();
+        if (! $room) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Room key not found',
+            ], 404);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'name' => $room->name,
+        ]);
+    }
+
     private function playerIndexByClientId(string $roomId, string $clientId): ?int
     {
         $state = $this->activePlayersState($roomId);
