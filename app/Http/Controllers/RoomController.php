@@ -65,6 +65,13 @@ class RoomController extends Controller
         return view('room-player', ['roomId' => $roomId]);
     }
 
+    public function roomAdmin(string $roomId): View
+    {
+        $this->ensureRoomExistsOrAbort($roomId);
+
+        return view('room-admin', ['roomId' => $roomId]);
+    }
+
     public function playerJoin(Request $request, string $roomId): JsonResponse
     {
         if ($response = $this->ensureRoomExistsOrJson($roomId)) {
