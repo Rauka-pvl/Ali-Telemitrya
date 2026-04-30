@@ -29,6 +29,7 @@
         input{ background:var(--surface); color:var(--text); min-width:0;} button{ border:none; color:#fff; font-weight:600; cursor:pointer; background: linear-gradient(180deg,#6c96ff 0%,#4f76df 100%);}
         button[disabled]{opacity:.55; cursor:not-allowed;} .mono{font-family: Menlo, Monaco, monospace; font-size:13px; line-height:1.5;}
         .players-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; } .slot-title{font-size:14px; color:var(--muted); margin-bottom:8px;} .slot-name{font-size:22px; font-weight:700;} .slot-empty{color:var(--warn);} .slot-full{color:var(--ok);}
+        .kick-btn{ margin-top:10px; background: linear-gradient(180deg,#d65b5b 0%, #b84343 100%); }
         @media (max-width:900px){ .players-grid{grid-template-columns:1fr;} }
         @media (max-width:640px){ .container{padding:14px;} h1{font-size:26px;} .mono{font-size:12px; word-break:break-word;} }
     </style>
@@ -52,14 +53,23 @@
     <div class="card">
         <div class="label">Игроки</div>
         <div class="players-grid">
-            <div class="card" style="margin-top:0;"><div class="slot-title">P1</div><div id="p1Name" class="slot-name slot-empty">Ожидание...</div></div>
-            <div class="card" style="margin-top:0;"><div class="slot-title">P2</div><div id="p2Name" class="slot-name slot-empty">Ожидание...</div></div>
+            <div class="card" style="margin-top:0;">
+                <div class="slot-title">P1</div>
+                <div id="p1Name" class="slot-name slot-empty">Ожидание...</div>
+                <button id="kickP1Btn" class="kick-btn">Выгнать P1</button>
+            </div>
+            <div class="card" style="margin-top:0;">
+                <div class="slot-title">P2</div>
+                <div id="p2Name" class="slot-name slot-empty">Ожидание...</div>
+                <button id="kickP2Btn" class="kick-btn">Выгнать P2</button>
+            </div>
         </div>
     </div>
 </div>
 <script>
 window.addEventListener('load', () => {
     const roomId = @json($roomId);
+    const mode = 'motion';
     const csrfToken = '{{ csrf_token() }}';
     const clientId = localStorage.getItem(`motion_client_id_${roomId}`) ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     localStorage.setItem(`motion_client_id_${roomId}`, clientId);
@@ -75,6 +85,8 @@ window.addEventListener('load', () => {
     const motionLog = document.getElementById('motionLog');
     const p1Name = document.getElementById('p1Name');
     const p2Name = document.getElementById('p2Name');
+    const kickP1Btn = document.getElementById('kickP1Btn');
+    const kickP2Btn = document.getElementById('kickP2Btn');
 
     const renderPlayers = (players) => {
         const map = new Map((players ?? []).map((p) => [p.playerIndex, p.name]));
@@ -86,15 +98,19 @@ window.addEventListener('load', () => {
     };
 
     const post = async (url, payload) => {
-        const response = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrfToken}, body:JSON.stringify(payload) });
+        const response = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrfToken}, body:JSON.stringify({ ...payload, mode }) });
         const data = await response.json().catch(() => ({}));
         if (!response.ok || data.ok === false) throw new Error(data.message ?? 'Ошибка запроса');
         return data;
     };
 
     if (window.Echo) {
-        window.Echo.channel(`room.${roomId}`).listen('.players.updated', (event) => renderPlayers(event.players ?? []));
+        window.Echo.channel(`room.${roomId}.${mode}`).listen('.players.updated', (event) => renderPlayers(event.players ?? []));
     }
+
+    const syncPlayers = () => {
+        post(`/room/${roomId}/player/snapshot`, {}).then((data) => renderPlayers(data.players ?? [])).catch(() => {});
+    };
 
     const onDeviceMotion = (event) => {
         if (!motionActive) return;
@@ -124,6 +140,7 @@ window.addEventListener('load', () => {
             motionBtn.disabled = false;
             if (heartbeatTimer) clearInterval(heartbeatTimer);
             heartbeatTimer = setInterval(() => { post(`/room/${roomId}/player/heartbeat`, { clientId }).catch(() => {}); }, 15000);
+            syncPlayers();
         } catch (error) {
             joinLog.textContent = error?.message ?? 'Не удалось подключиться';
         }
@@ -154,9 +171,23 @@ window.addEventListener('load', () => {
         fetch(`/room/${roomId}/player/leave`, {
             method:'POST', keepalive:true,
             headers:{'Content-Type':'application/json','X-CSRF-TOKEN':csrfToken},
-            body:JSON.stringify({ clientId }),
+            body:JSON.stringify({ clientId, mode }),
         });
     });
+
+    setInterval(syncPlayers, 8000);
+    syncPlayers();
+
+    const kickPlayer = (playerIndex) => {
+        post(`/room/${roomId}/player/kick`, { playerIndex })
+            .then((data) => renderPlayers(data.players ?? []))
+            .catch((error) => {
+                joinLog.textContent = `Ошибка kick: ${error?.message ?? error}`;
+            });
+    };
+
+    kickP1Btn.addEventListener('click', () => kickPlayer(1));
+    kickP2Btn.addEventListener('click', () => kickPlayer(2));
 });
 </script>
 </body>

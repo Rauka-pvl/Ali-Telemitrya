@@ -17,13 +17,14 @@ class RoomPlayersUpdated implements ShouldBroadcastNow
      */
     public function __construct(
         public string $roomId,
+        public string $mode,
         public array $players,
     ) {
     }
 
     public function broadcastOn(): array
     {
-        return [new Channel("room.{$this->roomId}")];
+        return [new Channel("room.{$this->roomId}.{$this->mode}")];
     }
 
     public function broadcastAs(): string
@@ -35,6 +36,7 @@ class RoomPlayersUpdated implements ShouldBroadcastNow
     {
         return [
             'roomId' => $this->roomId,
+            'mode' => $this->mode,
             'players' => $this->players,
         ];
     }

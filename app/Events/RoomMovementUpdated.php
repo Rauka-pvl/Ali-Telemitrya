@@ -14,6 +14,7 @@ class RoomMovementUpdated implements ShouldBroadcastNow
 
     public function __construct(
         public string $roomId,
+        public string $mode,
         public int $playerIndex,
         public string $source,
         public float $movement,
@@ -25,7 +26,7 @@ class RoomMovementUpdated implements ShouldBroadcastNow
 
     public function broadcastOn(): array
     {
-        return [new Channel("room.{$this->roomId}")];
+        return [new Channel("room.{$this->roomId}.{$this->mode}")];
     }
 
     public function broadcastAs(): string
@@ -37,6 +38,7 @@ class RoomMovementUpdated implements ShouldBroadcastNow
     {
         return [
             'roomId' => $this->roomId,
+            'mode' => $this->mode,
             'playerIndex' => $this->playerIndex,
             'source' => $this->source,
             'movement' => $this->movement,

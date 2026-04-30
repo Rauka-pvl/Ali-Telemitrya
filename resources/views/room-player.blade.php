@@ -78,6 +78,7 @@ window.addEventListener('load', () => {
         if (!joined) return;
         await post(`/room/${roomId}/movement`, {
             clientId,
+            mode: sourceType,
             source: sourceType,
             movement,
             hz,
@@ -213,7 +214,7 @@ window.addEventListener('load', () => {
             method: 'POST',
             keepalive: true,
             headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
-            body: JSON.stringify({ clientId }),
+            body: JSON.stringify({ clientId, mode: activeMode ?? 'motion' }),
         });
     });
 });

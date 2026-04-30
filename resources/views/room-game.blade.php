@@ -192,6 +192,7 @@
 <script>
     window.addEventListener('load', () => {
         const roomId = @json($roomId);
+        const mode = 'mic';
         const csrfToken = '{{ csrf_token() }}';
         const clientId = localStorage.getItem(`game_client_id_${roomId}`) ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
         localStorage.setItem(`game_client_id_${roomId}`, clientId);
@@ -273,7 +274,7 @@
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': csrfToken,
                 },
-                body: JSON.stringify(payload),
+                body: JSON.stringify({ ...payload, mode }),
             });
             const data = await response.json().catch(() => ({}));
             if (!response.ok || data.ok === false) {
@@ -282,7 +283,7 @@
             return data;
         };
 
-        window.Echo.channel(`room.${roomId}`)
+        window.Echo.channel(`room.${roomId}.${mode}`)
             .listen('.players.updated', (event) => {
                 renderPlayers(event.players ?? []);
             })
@@ -313,6 +314,7 @@
                 heartbeatTimer = setInterval(() => {
                     post(`/room/${roomId}/player/heartbeat`, { clientId }).catch(() => {});
                 }, 15000);
+                post(`/room/${roomId}/player/snapshot`, {}).catch(() => {});
             } catch (error) {
                 joinLog.textContent = error?.message ?? 'Не удалось подключиться';
             }
@@ -327,9 +329,13 @@
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': csrfToken,
                 },
-                body: JSON.stringify({ clientId }),
+                body: JSON.stringify({ clientId, mode }),
             });
         });
+
+        setInterval(() => {
+            post(`/room/${roomId}/player/snapshot`, {}).catch(() => {});
+        }, 8000);
     });
 </script>
 </body>

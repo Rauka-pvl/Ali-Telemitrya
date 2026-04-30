@@ -71,12 +71,13 @@ class RoomController extends Controller
             return $response;
         }
 
+        $mode = $this->validatedMode($request);
         $validated = $request->validate([
             'clientId' => ['required', 'string', 'max:100'],
             'name' => ['required', 'string', 'max:100'],
         ]);
 
-        $state = $this->activePlayersState($roomId);
+        $state = $this->activePlayersState($roomId, $mode);
         $clientId = $validated['clientId'];
         $name = trim($validated['name']);
 
@@ -85,9 +86,9 @@ class RoomController extends Controller
         if ($existing) {
             $state["p{$existing}"]['name'] = $name;
             $state["p{$existing}"]['lastSeen'] = now()->timestamp;
-            $this->persistPlayersState($roomId, $state);
+            $this->persistPlayersState($roomId, $mode, $state);
             $players = $this->playersPayload($state);
-            broadcast(new RoomPlayersUpdated($roomId, $players));
+            broadcast(new RoomPlayersUpdated($roomId, $mode, $players));
 
             return response()->json([
                 'ok' => true,
@@ -111,9 +112,9 @@ class RoomController extends Controller
             'lastSeen' => now()->timestamp,
         ];
 
-        $this->persistPlayersState($roomId, $state);
+        $this->persistPlayersState($roomId, $mode, $state);
         $players = $this->playersPayload($state);
-        broadcast(new RoomPlayersUpdated($roomId, $players));
+        broadcast(new RoomPlayersUpdated($roomId, $mode, $players));
 
         return response()->json([
             'ok' => true,
@@ -128,11 +129,12 @@ class RoomController extends Controller
             return $response;
         }
 
+        $mode = $this->validatedMode($request);
         $validated = $request->validate([
             'clientId' => ['required', 'string', 'max:100'],
         ]);
 
-        $state = $this->activePlayersState($roomId);
+        $state = $this->activePlayersState($roomId, $mode);
         $clientId = $validated['clientId'];
         $slot = collect([1, 2])->first(fn (int $index) => ($state["p{$index}"]['clientId'] ?? null) === $clientId);
 
@@ -141,7 +143,7 @@ class RoomController extends Controller
         }
 
         $state["p{$slot}"]['lastSeen'] = now()->timestamp;
-        $this->persistPlayersState($roomId, $state);
+        $this->persistPlayersState($roomId, $mode, $state);
 
         return response()->json(['ok' => true]);
     }
@@ -152,21 +154,47 @@ class RoomController extends Controller
             return $response;
         }
 
+        $mode = $this->validatedMode($request);
         $validated = $request->validate([
             'clientId' => ['required', 'string', 'max:100'],
         ]);
 
-        $state = $this->activePlayersState($roomId);
+        $state = $this->activePlayersState($roomId, $mode);
         $clientId = $validated['clientId'];
         $slot = collect([1, 2])->first(fn (int $index) => ($state["p{$index}"]['clientId'] ?? null) === $clientId);
 
         if ($slot) {
             $state["p{$slot}"] = [];
-            $this->persistPlayersState($roomId, $state);
-            broadcast(new RoomPlayersUpdated($roomId, $this->playersPayload($state)));
+            $this->persistPlayersState($roomId, $mode, $state);
+            broadcast(new RoomPlayersUpdated($roomId, $mode, $this->playersPayload($state)));
         }
 
         return response()->json(['ok' => true]);
+    }
+
+    public function playerKick(Request $request, string $roomId): JsonResponse
+    {
+        if ($response = $this->ensureRoomExistsOrJson($roomId)) {
+            return $response;
+        }
+
+        $mode = $this->validatedMode($request);
+        $validated = $request->validate([
+            'playerIndex' => ['required', 'integer', 'in:1,2'],
+        ]);
+
+        $state = $this->activePlayersState($roomId, $mode);
+        $slot = (int) $validated['playerIndex'];
+        $state["p{$slot}"] = [];
+
+        $this->persistPlayersState($roomId, $mode, $state);
+        $players = $this->playersPayload($state);
+        broadcast(new RoomPlayersUpdated($roomId, $mode, $players));
+
+        return response()->json([
+            'ok' => true,
+            'players' => $players,
+        ]);
     }
 
     public function motion(Request $request, string $roomId): JsonResponse
@@ -175,6 +203,7 @@ class RoomController extends Controller
             return $response;
         }
 
+        $mode = $this->validatedMode($request);
         $validated = $request->validate([
             'clientId' => ['required', 'string', 'max:100'],
             'x' => ['required', 'numeric'],
@@ -184,7 +213,7 @@ class RoomController extends Controller
             'ts' => ['required', 'integer'],
         ]);
 
-        $playerIndex = $this->playerIndexByClientId($roomId, $validated['clientId']);
+        $playerIndex = $this->playerIndexByClientId($roomId, $mode, $validated['clientId']);
         if (! $playerIndex) {
             return response()->json(['ok' => false, 'message' => 'Player not joined'], 403);
         }
@@ -210,6 +239,7 @@ class RoomController extends Controller
             return $response;
         }
 
+        $mode = $this->validatedMode($request);
         $validated = $request->validate([
             'clientId' => ['required', 'string', 'max:100'],
             'level' => ['required', 'numeric', 'min:0'],
@@ -217,7 +247,7 @@ class RoomController extends Controller
             'ts' => ['required', 'integer'],
         ]);
 
-        $playerIndex = $this->playerIndexByClientId($roomId, $validated['clientId']);
+        $playerIndex = $this->playerIndexByClientId($roomId, $mode, $validated['clientId']);
         if (! $playerIndex) {
             return response()->json(['ok' => false, 'message' => 'Player not joined'], 403);
         }
@@ -239,6 +269,7 @@ class RoomController extends Controller
             return $response;
         }
 
+        $mode = $this->validatedMode($request);
         $validated = $request->validate([
             'clientId' => ['required', 'string', 'max:100'],
             'source' => ['required', 'string', 'in:mic,motion'],
@@ -248,13 +279,14 @@ class RoomController extends Controller
             'ts' => ['required', 'integer'],
         ]);
 
-        $playerIndex = $this->playerIndexByClientId($roomId, $validated['clientId']);
+        $playerIndex = $this->playerIndexByClientId($roomId, $mode, $validated['clientId']);
         if (! $playerIndex) {
             return response()->json(['ok' => false, 'message' => 'Player not joined'], 403);
         }
 
         broadcast(new RoomMovementUpdated(
             $roomId,
+            $mode,
             $playerIndex,
             $validated['source'],
             (float) $validated['movement'],
@@ -264,6 +296,24 @@ class RoomController extends Controller
         ));
 
         return response()->json(['ok' => true]);
+    }
+
+    public function playerSnapshot(Request $request, string $roomId): JsonResponse
+    {
+        if ($response = $this->ensureRoomExistsOrJson($roomId)) {
+            return $response;
+        }
+
+        $mode = $this->validatedMode($request);
+        $state = $this->activePlayersState($roomId, $mode);
+        $this->persistPlayersState($roomId, $mode, $state);
+        $players = $this->playersPayload($state);
+        broadcast(new RoomPlayersUpdated($roomId, $mode, $players));
+
+        return response()->json([
+            'ok' => true,
+            'players' => $players,
+        ]);
     }
 
     public function apiAuth(Request $request): JsonResponse
@@ -295,13 +345,13 @@ class RoomController extends Controller
         ]);
     }
 
-    private function playerIndexByClientId(string $roomId, string $clientId): ?int
+    private function playerIndexByClientId(string $roomId, string $mode, string $clientId): ?int
     {
-        $state = $this->activePlayersState($roomId);
+        $state = $this->activePlayersState($roomId, $mode);
         foreach ([1, 2] as $index) {
             if (($state["p{$index}"]['clientId'] ?? null) === $clientId) {
                 $state["p{$index}"]['lastSeen'] = now()->timestamp;
-                $this->persistPlayersState($roomId, $state);
+                $this->persistPlayersState($roomId, $mode, $state);
 
                 return $index;
             }
@@ -313,10 +363,10 @@ class RoomController extends Controller
     /**
      * @return array{p1: array{clientId?: string, name?: string, lastSeen?: int}, p2: array{clientId?: string, name?: string, lastSeen?: int}}
      */
-    private function activePlayersState(string $roomId): array
+    private function activePlayersState(string $roomId, string $mode): array
     {
         $defaults = ['p1' => [], 'p2' => []];
-        $state = Cache::get($this->cacheKey($roomId), $defaults);
+        $state = Cache::get($this->cacheKey($roomId, $mode), $defaults);
         $state = array_merge($defaults, is_array($state) ? $state : []);
 
         $cutoff = now()->subSeconds(self::ONLINE_TTL_SECONDS)->timestamp;
@@ -330,9 +380,9 @@ class RoomController extends Controller
         return $state;
     }
 
-    private function persistPlayersState(string $roomId, array $state): void
+    private function persistPlayersState(string $roomId, string $mode, array $state): void
     {
-        Cache::put($this->cacheKey($roomId), $state, now()->addMinutes(10));
+        Cache::put($this->cacheKey($roomId, $mode), $state, now()->addMinutes(10));
     }
 
     /**
@@ -358,9 +408,19 @@ class RoomController extends Controller
             ->all();
     }
 
-    private function cacheKey(string $roomId): string
+    private function cacheKey(string $roomId, string $mode): string
     {
-        return "room:{$roomId}:users";
+        return "room:{$roomId}:{$mode}:players";
+    }
+
+    private function validatedMode(Request $request): string
+    {
+        $mode = (string) $request->input('mode', '');
+        if (! in_array($mode, ['mic', 'motion'], true)) {
+            abort(422, 'mode must be mic or motion');
+        }
+
+        return $mode;
     }
 
     private function ensureRoomExistsOrAbort(string $roomId): void
