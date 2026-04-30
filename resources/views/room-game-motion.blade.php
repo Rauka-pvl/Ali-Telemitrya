@@ -44,6 +44,7 @@
             <input id="nameInput" type="text" maxlength="40" placeholder="Введите имя">
             <button id="joinBtn">Подключиться</button>
             <button id="motionBtn" disabled>Разрешить движение</button>
+            <button id="disconnectBtn" disabled>Отключиться</button>
         </div>
         <div id="joinLog" class="mono" style="margin-top: 10px; color: var(--muted);">Не подключен</div>
         <div id="motionLog" class="mono" style="margin-top: 8px; color: var(--muted);">Движение не активировано</div>
@@ -72,6 +73,7 @@ window.addEventListener('load', () => {
     const nameInput = document.getElementById('nameInput');
     const joinBtn = document.getElementById('joinBtn');
     const motionBtn = document.getElementById('motionBtn');
+    const disconnectBtn = document.getElementById('disconnectBtn');
     const joinLog = document.getElementById('joinLog');
     const motionLog = document.getElementById('motionLog');
     const p1Name = document.getElementById('p1Name');
@@ -101,6 +103,21 @@ window.addEventListener('load', () => {
         post(`/room/${roomId}/player/snapshot`, {}).then((data) => renderPlayers(data.players ?? [])).catch(() => {});
     };
 
+    const resetUiAfterDisconnect = () => {
+        joined = false;
+        if (heartbeatTimer) clearInterval(heartbeatTimer);
+        heartbeatTimer = null;
+        motionActive = false;
+        window.removeEventListener('devicemotion', onDeviceMotion);
+
+        joinBtn.disabled = false;
+        nameInput.disabled = false;
+        motionBtn.disabled = true;
+        motionBtn.textContent = 'Разрешить движение';
+        disconnectBtn.disabled = true;
+        joinLog.textContent = 'Вы отключены';
+    };
+
     const onDeviceMotion = (event) => {
         if (!motionActive) return;
         const x = event.accelerationIncludingGravity?.x ?? 0;
@@ -127,6 +144,7 @@ window.addEventListener('load', () => {
             joinBtn.disabled = true;
             nameInput.disabled = true;
             motionBtn.disabled = false;
+            disconnectBtn.disabled = false;
             if (heartbeatTimer) clearInterval(heartbeatTimer);
             heartbeatTimer = setInterval(() => { post(`/room/${roomId}/player/heartbeat`, { clientId }).catch(() => {}); }, 15000);
             syncPlayers();
@@ -151,6 +169,19 @@ window.addEventListener('load', () => {
             window.addEventListener('devicemotion', onDeviceMotion);
         } catch (error) {
             motionLog.textContent = `Ошибка движения: ${error?.message ?? error}`;
+        }
+    });
+
+    disconnectBtn.addEventListener('click', async () => {
+        if (!joined) return;
+        try {
+            motionActive = false;
+            window.removeEventListener('devicemotion', onDeviceMotion);
+            await post(`/room/${roomId}/player/leave`, { clientId });
+            resetUiAfterDisconnect();
+            syncPlayers();
+        } catch (error) {
+            joinLog.textContent = `Ошибка отключения: ${error?.message ?? error}`;
         }
     });
 

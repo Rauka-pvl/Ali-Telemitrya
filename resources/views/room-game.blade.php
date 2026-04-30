@@ -153,6 +153,7 @@
     <div class="join-row">
         <input id="nameInput" type="text" maxlength="40" placeholder="Введите имя">
         <button id="joinBtn">Подключиться</button>
+        <button id="disconnectBtn" disabled>Отключиться</button>
     </div>
     <div id="joinLog" class="mono" style="margin-top: 10px; color: var(--muted);">Не подключен</div>
 </div>
@@ -201,6 +202,7 @@
 
         const nameInput = document.getElementById('nameInput');
         const joinBtn = document.getElementById('joinBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
         const joinLog = document.getElementById('joinLog');
         const p1Name = document.getElementById('p1Name');
         const p2Name = document.getElementById('p2Name');
@@ -309,6 +311,7 @@
                 joinLog.textContent = `Вы подключены как P${data.playerIndex}: ${name}`;
                 joinBtn.disabled = true;
                 nameInput.disabled = true;
+                disconnectBtn.disabled = false;
 
                 if (heartbeatTimer) clearInterval(heartbeatTimer);
                 heartbeatTimer = setInterval(() => {
@@ -317,6 +320,23 @@
                 post(`/room/${roomId}/player/snapshot`, {}).catch(() => {});
             } catch (error) {
                 joinLog.textContent = error?.message ?? 'Не удалось подключиться';
+            }
+        });
+
+        disconnectBtn.addEventListener('click', async () => {
+            if (!joined) return;
+            try {
+                await post(`/room/${roomId}/player/leave`, { clientId });
+                joined = false;
+                if (heartbeatTimer) clearInterval(heartbeatTimer);
+                heartbeatTimer = null;
+                joinBtn.disabled = false;
+                nameInput.disabled = false;
+                disconnectBtn.disabled = true;
+                joinLog.textContent = 'Вы отключены';
+                post(`/room/${roomId}/player/snapshot`, {}).catch(() => {});
+            } catch (error) {
+                joinLog.textContent = error?.message ?? 'Не удалось отключиться';
             }
         });
 
