@@ -29,6 +29,13 @@
         input{ background:var(--surface); color:var(--text); min-width:0;} button{ border:none; color:#fff; font-weight:600; cursor:pointer; background: linear-gradient(180deg,#6c96ff 0%,#4f76df 100%);}
         button[disabled]{opacity:.55; cursor:not-allowed;} .mono{font-family: Menlo, Monaco, monospace; font-size:13px; line-height:1.5;}
         .players-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; } .slot-title{font-size:14px; color:var(--muted); margin-bottom:8px;} .slot-name{font-size:22px; font-weight:700;} .slot-empty{color:var(--warn);} .slot-full{color:var(--ok);}
+        .bar-wrap{ margin-top:10px; }
+        .bar-label{ font-size:12px; color:var(--muted); margin-bottom:6px; }
+        .bar-track{ width:100%; height:12px; border-radius:999px; background:rgba(255,255,255,.08); border:1px solid var(--border); overflow:hidden; }
+        .bar-fill{ height:100%; width:0; border-radius:999px; transition:width 120ms linear; }
+        .bar-fill-hz{ background:linear-gradient(90deg,#4f76df 0%, #73a0ff 100%); }
+        .bar-fill-movement{ background:linear-gradient(90deg,#1e9f5a 0%, #2ec27e 100%); }
+        .bar-ticks{ margin-top:5px; display:flex; justify-content:space-between; font-size:11px; color:var(--muted); }
         .status-badge{ margin-top:10px; display:inline-block; padding:6px 10px; border-radius:999px; font-size:12px; font-weight:700; }
         .status-offline{ color:#ffd5d5; background:rgba(214,91,91,.22); border:1px solid rgba(214,91,91,.5); }
         .status-online{ color:#d6ffe8; background:rgba(46,194,126,.22); border:1px solid rgba(46,194,126,.5); }
@@ -52,6 +59,16 @@
         <div id="joinLog" class="mono" style="margin-top: 10px; color: var(--muted);">Не подключен</div>
         <div id="connectionStatus" class="status-badge status-offline">Отключен</div>
         <div id="micLog" class="mono" style="margin-top: 8px; color: var(--muted);">Микрофон не активирован</div>
+        <div class="bar-wrap">
+            <div class="bar-label">Шкала частоты (минимум 50 Гц)</div>
+            <div class="bar-track"><div id="hzBar" class="bar-fill bar-fill-hz"></div></div>
+            <div class="bar-ticks"><span>50</span><span>100</span><span>150</span><span>260+</span></div>
+        </div>
+        <div class="bar-wrap">
+            <div class="bar-label">Шкала движения</div>
+            <div class="bar-track"><div id="movementBar" class="bar-fill bar-fill-movement"></div></div>
+            <div class="bar-ticks"><span>0</span><span>10</span><span>25</span><span>50+</span></div>
+        </div>
     </div>
 
     <div class="card">
@@ -77,6 +94,10 @@ window.addEventListener('load', () => {
     let source = null;
     let rafId = null;
     let lastSentAt = 0;
+    let lastSentMovement = null;
+    const minHz = 50;
+    const maxHz = 260;
+    const maxMovement = 50;
 
     const nameInput = document.getElementById('nameInput');
     const joinBtn = document.getElementById('joinBtn');
@@ -85,6 +106,8 @@ window.addEventListener('load', () => {
     const joinLog = document.getElementById('joinLog');
     const connectionStatus = document.getElementById('connectionStatus');
     const micLog = document.getElementById('micLog');
+    const hzBar = document.getElementById('hzBar');
+    const movementBar = document.getElementById('movementBar');
     const p1Name = document.getElementById('p1Name');
     const p2Name = document.getElementById('p2Name');
 
@@ -132,17 +155,25 @@ window.addEventListener('load', () => {
         if (!analyser || !audioContext) return;
         const data = new Uint8Array(analyser.frequencyBinCount);
         analyser.getByteFrequencyData(data);
+        const minBin = Math.max(2, Math.floor((minHz * analyser.fftSize) / audioContext.sampleRate));
+        const maxBin = Math.min(data.length - 1, Math.floor((maxHz * analyser.fftSize) / audioContext.sampleRate));
         let maxValue = -1;
-        let maxIndex = 0;
-        for (let i = 2; i < data.length; i += 1) {
+        let maxIndex = minBin;
+        for (let i = minBin; i <= maxBin; i += 1) {
             if (data[i] > maxValue) { maxValue = data[i]; maxIndex = i; }
         }
         const hz = (maxIndex * audioContext.sampleRate) / analyser.fftSize;
-        const movement = hz > 40 ? (hz - 40) / 5 : 0;
+        const movement = hz > minHz ? (hz - minHz) / 5 : 0;
         micLog.textContent = `Hz=${hz.toFixed(2)} | movement=${movement.toFixed(2)}`;
+        const hzPercent = Math.max(0, Math.min(100, ((hz - minHz) / (maxHz - minHz)) * 100));
+        const movementPercent = Math.max(0, Math.min(100, (movement / maxMovement) * 100));
+        hzBar.style.width = `${hzPercent.toFixed(1)}%`;
+        movementBar.style.width = `${movementPercent.toFixed(1)}%`;
         const now = Date.now();
-        if (now - lastSentAt >= 100) {
+        const changedEnough = lastSentMovement === null || Math.abs(movement - lastSentMovement) > 5;
+        if (now - lastSentAt >= 100 && changedEnough) {
             lastSentAt = now;
+            lastSentMovement = movement;
             post(`/room/${roomId}/movement`, { clientId, source:'mic', movement, hz, ts:now }).catch(() => {});
         }
         rafId = window.requestAnimationFrame(micLoop);
@@ -202,6 +233,7 @@ window.addEventListener('load', () => {
             stream = null;
             audioContext = null;
             analyser = null;
+            lastSentMovement = null;
 
             await post(`/room/${roomId}/player/leave`, { clientId });
             resetUiAfterDisconnect();

@@ -29,6 +29,11 @@
         input{ background:var(--surface); color:var(--text); min-width:0;} button{ border:none; color:#fff; font-weight:600; cursor:pointer; background: linear-gradient(180deg,#6c96ff 0%,#4f76df 100%);}
         button[disabled]{opacity:.55; cursor:not-allowed;} .mono{font-family: Menlo, Monaco, monospace; font-size:13px; line-height:1.5;}
         .players-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; } .slot-title{font-size:14px; color:var(--muted); margin-bottom:8px;} .slot-name{font-size:22px; font-weight:700;} .slot-empty{color:var(--warn);} .slot-full{color:var(--ok);}
+        .bar-wrap{ margin-top:10px; }
+        .bar-label{ font-size:12px; color:var(--muted); margin-bottom:6px; }
+        .bar-track{ width:100%; height:12px; border-radius:999px; background:rgba(255,255,255,.08); border:1px solid var(--border); overflow:hidden; }
+        .bar-fill{ height:100%; width:0; border-radius:999px; transition:width 120ms linear; background:linear-gradient(90deg,#1e9f5a 0%, #2ec27e 100%); }
+        .bar-ticks{ margin-top:5px; display:flex; justify-content:space-between; font-size:11px; color:var(--muted); }
         .status-badge{ margin-top:10px; display:inline-block; padding:6px 10px; border-radius:999px; font-size:12px; font-weight:700; }
         .status-offline{ color:#ffd5d5; background:rgba(214,91,91,.22); border:1px solid rgba(214,91,91,.5); }
         .status-online{ color:#d6ffe8; background:rgba(46,194,126,.22); border:1px solid rgba(46,194,126,.5); }
@@ -52,6 +57,11 @@
         <div id="joinLog" class="mono" style="margin-top: 10px; color: var(--muted);">Не подключен</div>
         <div id="connectionStatus" class="status-badge status-offline">Отключен</div>
         <div id="motionLog" class="mono" style="margin-top: 8px; color: var(--muted);">Движение не активировано</div>
+        <div class="bar-wrap">
+            <div class="bar-label">Шкала движения</div>
+            <div class="bar-track"><div id="movementBar" class="bar-fill"></div></div>
+            <div class="bar-ticks"><span>0</span><span>10</span><span>25</span><span>50+</span></div>
+        </div>
     </div>
 
     <div class="card">
@@ -72,7 +82,9 @@ window.addEventListener('load', () => {
     let joined = false;
     let heartbeatTimer = null;
     let lastSentAt = 0;
+    let lastSentMovement = null;
     let motionActive = false;
+    const maxMovement = 60;
 
     const nameInput = document.getElementById('nameInput');
     const joinBtn = document.getElementById('joinBtn');
@@ -81,6 +93,7 @@ window.addEventListener('load', () => {
     const joinLog = document.getElementById('joinLog');
     const connectionStatus = document.getElementById('connectionStatus');
     const motionLog = document.getElementById('motionLog');
+    const movementBar = document.getElementById('movementBar');
     const p1Name = document.getElementById('p1Name');
     const p2Name = document.getElementById('p2Name');
 
@@ -113,6 +126,7 @@ window.addEventListener('load', () => {
         if (heartbeatTimer) clearInterval(heartbeatTimer);
         heartbeatTimer = null;
         motionActive = false;
+        lastSentMovement = null;
         window.removeEventListener('devicemotion', onDeviceMotion);
 
         joinBtn.disabled = false;
@@ -134,9 +148,13 @@ window.addEventListener('load', () => {
         const magnitude = Math.sqrt((x * x) + (y * y) + (z * z));
         const movement = magnitude >= 5 ? Math.max(0, (magnitude - 5) * 10) : 0;
         motionLog.textContent = `magnitude=${magnitude.toFixed(2)} | movement=${movement.toFixed(2)}`;
+        const movementPercent = Math.max(0, Math.min(100, (movement / maxMovement) * 100));
+        movementBar.style.width = `${movementPercent.toFixed(1)}%`;
         const now = Date.now();
-        if (now - lastSentAt >= 80) {
+        const changedEnough = lastSentMovement === null || Math.abs(movement - lastSentMovement) > 5;
+        if (now - lastSentAt >= 80 && changedEnough) {
             lastSentAt = now;
+            lastSentMovement = movement;
             post(`/room/${roomId}/movement`, { clientId, source:'motion', movement, magnitude, ts:now }).catch(() => {});
         }
     };
