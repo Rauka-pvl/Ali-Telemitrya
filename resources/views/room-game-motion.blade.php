@@ -151,7 +151,7 @@ window.addEventListener('load', () => {
         const movementPercent = Math.max(0, Math.min(100, (movement / maxMovement) * 100));
         movementBar.style.width = `${movementPercent.toFixed(1)}%`;
         const now = Date.now();
-        const changedEnough = lastSentMovement === null || Math.abs(movement - lastSentMovement) > 5;
+        const changedEnough = lastSentMovement === null || Math.abs(movement - lastSentMovement) > 2;
         if (now - lastSentAt >= 80 && changedEnough) {
             lastSentAt = now;
             lastSentMovement = movement;
