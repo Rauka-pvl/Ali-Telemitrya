@@ -95,9 +95,13 @@ window.addEventListener('load', () => {
     let rafId = null;
     let lastSentAt = 0;
     let lastSentMovement = null;
+    let smoothedHz = null;
     const minHz = 50;
-    const maxHz = 260;
+    const maxHz = 220;
     const maxMovement = 50;
+    const silenceRmsThreshold = 0.018;
+    const silencePeakThreshold = 35;
+    const hzSmoothingAlpha = 0.2;
 
     const nameInput = document.getElementById('nameInput');
     const joinBtn = document.getElementById('joinBtn');
@@ -153,18 +157,42 @@ window.addEventListener('load', () => {
 
     const micLoop = () => {
         if (!analyser || !audioContext) return;
-        const data = new Uint8Array(analyser.frequencyBinCount);
-        analyser.getByteFrequencyData(data);
+        const freqData = new Uint8Array(analyser.frequencyBinCount);
+        const timeData = new Uint8Array(analyser.fftSize);
+        analyser.getByteFrequencyData(freqData);
+        analyser.getByteTimeDomainData(timeData);
+
+        // RMS gate to suppress random frequency jumps in near-silence.
+        let energy = 0;
+        for (let i = 0; i < timeData.length; i += 1) {
+            const normalized = (timeData[i] - 128) / 128;
+            energy += normalized * normalized;
+        }
+        const rms = Math.sqrt(energy / timeData.length);
+
         const minBin = Math.max(2, Math.floor((minHz * analyser.fftSize) / audioContext.sampleRate));
-        const maxBin = Math.min(data.length - 1, Math.floor((maxHz * analyser.fftSize) / audioContext.sampleRate));
+        const maxBin = Math.min(freqData.length - 1, Math.floor((maxHz * analyser.fftSize) / audioContext.sampleRate));
         let maxValue = -1;
         let maxIndex = minBin;
         for (let i = minBin; i <= maxBin; i += 1) {
-            if (data[i] > maxValue) { maxValue = data[i]; maxIndex = i; }
+            if (freqData[i] > maxValue) { maxValue = freqData[i]; maxIndex = i; }
         }
-        const hz = (maxIndex * audioContext.sampleRate) / analyser.fftSize;
+
+        const rawHz = (maxIndex * audioContext.sampleRate) / analyser.fftSize;
+        const isSilent = rms < silenceRmsThreshold || maxValue < silencePeakThreshold;
+        const hz = isSilent
+            ? 0
+            : (smoothedHz === null
+                ? rawHz
+                : (smoothedHz * (1 - hzSmoothingAlpha)) + (rawHz * hzSmoothingAlpha));
+
+        smoothedHz = hz;
+
         const movement = hz > minHz ? (hz - minHz) / 5 : 0;
-        micLog.textContent = `Hz=${hz.toFixed(2)} | movement=${movement.toFixed(2)}`;
+        micLog.textContent = isSilent
+            ? `Тишина | RMS=${rms.toFixed(4)} | movement=0.00`
+            : `Hz=${hz.toFixed(2)} | peak=${maxValue} | RMS=${rms.toFixed(4)} | movement=${movement.toFixed(2)}`;
+
         const hzPercent = Math.max(0, Math.min(100, ((hz - minHz) / (maxHz - minHz)) * 100));
         const movementPercent = Math.max(0, Math.min(100, (movement / maxMovement) * 100));
         hzBar.style.width = `${hzPercent.toFixed(1)}%`;
@@ -234,6 +262,7 @@ window.addEventListener('load', () => {
             audioContext = null;
             analyser = null;
             lastSentMovement = null;
+            smoothedHz = null;
 
             await post(`/room/${roomId}/player/leave`, { clientId });
             resetUiAfterDisconnect();
