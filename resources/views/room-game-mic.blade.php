@@ -60,9 +60,9 @@
         <div id="connectionStatus" class="status-badge status-offline">Отключен</div>
         <div id="micLog" class="mono" style="margin-top: 8px; color: var(--muted);">Микрофон не активирован</div>
         <div class="bar-wrap">
-            <div class="bar-label">Шкала частоты (минимум 50 Гц)</div>
+            <div class="bar-label">Шкала частоты (минимум 80 Гц)</div>
             <div class="bar-track"><div id="hzBar" class="bar-fill bar-fill-hz"></div></div>
-            <div class="bar-ticks"><span>50</span><span>100</span><span>150</span><span>260+</span></div>
+            <div class="bar-ticks"><span>80</span><span>120</span><span>180</span><span>260+</span></div>
         </div>
         <div class="bar-wrap">
             <div class="bar-label">Шкала движения</div>
@@ -94,14 +94,14 @@ window.addEventListener('load', () => {
     let source = null;
     let rafId = null;
     let lastSentAt = 0;
-    let lastSentMovement = null;
     let smoothedHz = null;
-    const minHz = 50;
+    const minHz = 80;
     const maxHz = 220;
     const maxMovement = 50;
-    const silenceRmsThreshold = 0.018;
-    const silencePeakThreshold = 35;
+    const silenceRmsThreshold = 0.012;
+    const silencePeakThreshold = 22;
     const hzSmoothingAlpha = 0.2;
+    const sendIntervalMs = 100;
 
     const nameInput = document.getElementById('nameInput');
     const joinBtn = document.getElementById('joinBtn');
@@ -188,7 +188,19 @@ window.addEventListener('load', () => {
 
         smoothedHz = hz;
 
-        const movement = hz > minHz ? (hz - minHz) / 5 : 0;
+        // Combine pitch + loudness so both normal speech and shouts pass,
+        // and screams get an extra boost.
+        let movement = 0;
+        if (!isSilent && hz >= minHz) {
+            const pitchPart = (hz - minHz) / 4;
+            const peakPart = Math.max(0, (maxValue - 35) / 4);
+            const rmsPart = Math.max(0, (rms - 0.02) * 120);
+            movement = pitchPart + peakPart + rmsPart;
+
+            if (rms > 0.08 || maxValue > 170) {
+                movement *= 1.6;
+            }
+        }
         micLog.textContent = isSilent
             ? `Тишина | RMS=${rms.toFixed(4)} | movement=0.00`
             : `Hz=${hz.toFixed(2)} | peak=${maxValue} | RMS=${rms.toFixed(4)} | movement=${movement.toFixed(2)}`;
@@ -198,10 +210,8 @@ window.addEventListener('load', () => {
         hzBar.style.width = `${hzPercent.toFixed(1)}%`;
         movementBar.style.width = `${movementPercent.toFixed(1)}%`;
         const now = Date.now();
-        const changedEnough = lastSentMovement === null || Math.abs(movement - lastSentMovement) > 5;
-        if (now - lastSentAt >= 100 && changedEnough) {
+        if (hz >= minHz && now - lastSentAt >= sendIntervalMs) {
             lastSentAt = now;
-            lastSentMovement = movement;
             post(`/room/${roomId}/movement`, { clientId, source:'mic', movement, hz, ts:now }).catch(() => {});
         }
         rafId = window.requestAnimationFrame(micLoop);
@@ -261,7 +271,6 @@ window.addEventListener('load', () => {
             stream = null;
             audioContext = null;
             analyser = null;
-            lastSentMovement = null;
             smoothedHz = null;
 
             await post(`/room/${roomId}/player/leave`, { clientId });
