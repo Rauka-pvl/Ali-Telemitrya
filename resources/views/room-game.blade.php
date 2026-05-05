@@ -72,6 +72,9 @@
         .slot-name { font-size: 22px; font-weight: 700; }
         .slot-empty { color: var(--warn); }
         .slot-full { color: var(--ok); }
+        .status-badge { margin-top: 10px; display: inline-block; padding: 6px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+        .status-offline { color:#ffd5d5; background:rgba(214,91,91,.22); border:1px solid rgba(214,91,91,.5); }
+        .status-online { color:#d6ffe8; background:rgba(46,194,126,.22); border:1px solid rgba(46,194,126,.5); }
         .hz-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
         .hz-track {
             width: 100%;
@@ -156,6 +159,7 @@
         <button id="disconnectBtn" disabled>Отключиться</button>
     </div>
     <div id="joinLog" class="mono" style="margin-top: 10px; color: var(--muted);">Не подключен</div>
+    <div id="connectionStatus" class="status-badge status-offline">Отключен</div>
 </div>
 
 <div class="card">
@@ -204,6 +208,7 @@
         const joinBtn = document.getElementById('joinBtn');
         const disconnectBtn = document.getElementById('disconnectBtn');
         const joinLog = document.getElementById('joinLog');
+        const connectionStatus = document.getElementById('connectionStatus');
         const p1Name = document.getElementById('p1Name');
         const p2Name = document.getElementById('p2Name');
         const p1HzFill = document.getElementById('p1HzFill');
@@ -312,6 +317,9 @@
                 joinBtn.disabled = true;
                 nameInput.disabled = true;
                 disconnectBtn.disabled = false;
+                connectionStatus.textContent = 'Подключен';
+                connectionStatus.classList.remove('status-offline');
+                connectionStatus.classList.add('status-online');
 
                 if (heartbeatTimer) clearInterval(heartbeatTimer);
                 heartbeatTimer = setInterval(() => {
@@ -334,6 +342,9 @@
                 nameInput.disabled = false;
                 disconnectBtn.disabled = true;
                 joinLog.textContent = 'Вы отключены';
+                connectionStatus.textContent = 'Отключен';
+                connectionStatus.classList.remove('status-online');
+                connectionStatus.classList.add('status-offline');
                 post(`/room/${roomId}/player/snapshot`, {}).catch(() => {});
             } catch (error) {
                 joinLog.textContent = error?.message ?? 'Не удалось отключиться';

@@ -29,6 +29,9 @@
         input{ background:var(--surface); color:var(--text); min-width:0;} button{ border:none; color:#fff; font-weight:600; cursor:pointer; background: linear-gradient(180deg,#6c96ff 0%,#4f76df 100%);}
         button[disabled]{opacity:.55; cursor:not-allowed;} .mono{font-family: Menlo, Monaco, monospace; font-size:13px; line-height:1.5;}
         .players-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; } .slot-title{font-size:14px; color:var(--muted); margin-bottom:8px;} .slot-name{font-size:22px; font-weight:700;} .slot-empty{color:var(--warn);} .slot-full{color:var(--ok);}
+        .status-badge{ margin-top:10px; display:inline-block; padding:6px 10px; border-radius:999px; font-size:12px; font-weight:700; }
+        .status-offline{ color:#ffd5d5; background:rgba(214,91,91,.22); border:1px solid rgba(214,91,91,.5); }
+        .status-online{ color:#d6ffe8; background:rgba(46,194,126,.22); border:1px solid rgba(46,194,126,.5); }
         @media (max-width:900px){ .players-grid{grid-template-columns:1fr;} }
         @media (max-width:640px){ .container{padding:14px;} h1{font-size:26px;} .mono{font-size:12px; word-break:break-word;} }
     </style>
@@ -47,6 +50,7 @@
             <button id="disconnectBtn" disabled>Отключиться</button>
         </div>
         <div id="joinLog" class="mono" style="margin-top: 10px; color: var(--muted);">Не подключен</div>
+        <div id="connectionStatus" class="status-badge status-offline">Отключен</div>
         <div id="micLog" class="mono" style="margin-top: 8px; color: var(--muted);">Микрофон не активирован</div>
     </div>
 
@@ -79,6 +83,7 @@ window.addEventListener('load', () => {
     const micBtn = document.getElementById('micBtn');
     const disconnectBtn = document.getElementById('disconnectBtn');
     const joinLog = document.getElementById('joinLog');
+    const connectionStatus = document.getElementById('connectionStatus');
     const micLog = document.getElementById('micLog');
     const p1Name = document.getElementById('p1Name');
     const p2Name = document.getElementById('p2Name');
@@ -118,6 +123,9 @@ window.addEventListener('load', () => {
         micBtn.textContent = 'Разрешить микрофон';
         disconnectBtn.disabled = true;
         joinLog.textContent = 'Вы отключены';
+        connectionStatus.textContent = 'Отключен';
+        connectionStatus.classList.remove('status-online');
+        connectionStatus.classList.add('status-offline');
     };
 
     const micLoop = () => {
@@ -152,6 +160,9 @@ window.addEventListener('load', () => {
             nameInput.disabled = true;
             micBtn.disabled = false;
             disconnectBtn.disabled = false;
+            connectionStatus.textContent = 'Подключен';
+            connectionStatus.classList.remove('status-offline');
+            connectionStatus.classList.add('status-online');
             if (heartbeatTimer) clearInterval(heartbeatTimer);
             heartbeatTimer = setInterval(() => { post(`/room/${roomId}/player/heartbeat`, { clientId }).catch(() => {}); }, 15000);
             syncPlayers();
