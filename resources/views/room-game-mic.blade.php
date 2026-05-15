@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Микрофон {{ $roomId }}</title>
+    <title>Кыз куу {{ $roomId }}</title>
     @vite(['resources/js/app.js'])
     <style>
         * { box-sizing: border-box; }
@@ -45,7 +45,7 @@
 </head>
 <body>
 <div class="container">
-    <h1>Режим: Микрофон</h1>
+    <h1>Режим: Кыз куу</h1>
     <div class="subtitle">Комната: {{ $roomId }}</div>
 
     <div class="card">
@@ -53,12 +53,12 @@
         <div class="join-row">
             <input id="nameInput" type="text" maxlength="40" placeholder="Введите имя">
             <button id="joinBtn">Подключиться</button>
-            <button id="micBtn" disabled>Разрешить микрофон</button>
+            <button id="micBtn" disabled>Включить звук</button>
             <button id="disconnectBtn" disabled>Отключиться</button>
         </div>
         <div id="joinLog" class="mono" style="margin-top: 10px; color: var(--muted);">Не подключен</div>
         <div id="connectionStatus" class="status-badge status-offline">Отключен</div>
-        <div id="micLog" class="mono" style="margin-top: 8px; color: var(--muted);">Микрофон не активирован</div>
+        <div id="micLog" class="mono" style="margin-top: 8px; color: var(--muted);">Звук не активирован</div>
         <div class="bar-wrap">
             <div class="bar-label">Шкала частоты (минимум 80 Гц)</div>
             <div class="bar-track"><div id="hzBar" class="bar-fill bar-fill-hz"></div></div>
@@ -147,7 +147,7 @@ window.addEventListener('load', () => {
         joinBtn.disabled = false;
         nameInput.disabled = false;
         micBtn.disabled = true;
-        micBtn.textContent = 'Разрешить микрофон';
+        micBtn.textContent = 'Включить звук';
         disconnectBtn.disabled = true;
         joinLog.textContent = 'Вы отключены';
         connectionStatus.textContent = 'Отключен';
@@ -251,10 +251,10 @@ window.addEventListener('load', () => {
             analyser.smoothingTimeConstant = 0.2;
             source.connect(analyser);
             micBtn.disabled = true;
-            micBtn.textContent = 'Микрофон активирован';
+            micBtn.textContent = 'Звук активирован';
             micLoop();
         } catch (error) {
-            micLog.textContent = `Ошибка микрофона: ${error?.message ?? error}`;
+            micLog.textContent = `Ошибка звука: ${error?.message ?? error}`;
         }
     });
 

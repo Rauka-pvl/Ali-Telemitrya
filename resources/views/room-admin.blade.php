@@ -43,33 +43,49 @@
     <div class="subtitle">Комната: {{ $roomId }}</div>
 
     <div class="card">
-        <div class="label">Режим: Микрофон</div>
+        <div class="label">Режим: Кыз куу</div>
         <div class="mode-grid">
             <div class="card" style="margin-top:0;">
                 <div class="slot-title">P1</div>
                 <div id="micP1Name" class="slot-name slot-empty">Ожидание...</div>
-                <button id="kickMicP1">Выгнать P1 (Mic)</button>
+                <button id="kickMicP1">Выгнать P1 (Кыз куу)</button>
             </div>
             <div class="card" style="margin-top:0;">
                 <div class="slot-title">P2</div>
                 <div id="micP2Name" class="slot-name slot-empty">Ожидание...</div>
-                <button id="kickMicP2">Выгнать P2 (Mic)</button>
+                <button id="kickMicP2">Выгнать P2 (Кыз куу)</button>
             </div>
         </div>
     </div>
 
     <div class="card">
-        <div class="label">Режим: Движение</div>
+        <div class="label">Режим: Аркан тарту</div>
         <div class="mode-grid">
             <div class="card" style="margin-top:0;">
                 <div class="slot-title">P1</div>
                 <div id="motionP1Name" class="slot-name slot-empty">Ожидание...</div>
-                <button id="kickMotionP1">Выгнать P1 (Motion)</button>
+                <button id="kickMotionP1">Выгнать P1 (Аркан тарту)</button>
             </div>
             <div class="card" style="margin-top:0;">
                 <div class="slot-title">P2</div>
                 <div id="motionP2Name" class="slot-name slot-empty">Ожидание...</div>
-                <button id="kickMotionP2">Выгнать P2 (Motion)</button>
+                <button id="kickMotionP2">Выгнать P2 (Аркан тарту)</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="label">Режим: Байге</div>
+        <div class="mode-grid">
+            <div class="card" style="margin-top:0;">
+                <div class="slot-title">P1</div>
+                <div id="baygeP1Name" class="slot-name slot-empty">Ожидание...</div>
+                <button id="kickBaygeP1">Выгнать P1 (Байге)</button>
+            </div>
+            <div class="card" style="margin-top:0;">
+                <div class="slot-title">P2</div>
+                <div id="baygeP2Name" class="slot-name slot-empty">Ожидание...</div>
+                <button id="kickBaygeP2">Выгнать P2 (Байге)</button>
             </div>
         </div>
     </div>
@@ -86,6 +102,7 @@ window.addEventListener('load', () => {
     const slots = {
         mic: { 1: document.getElementById('micP1Name'), 2: document.getElementById('micP2Name') },
         motion: { 1: document.getElementById('motionP1Name'), 2: document.getElementById('motionP2Name') },
+        bayge: { 1: document.getElementById('baygeP1Name'), 2: document.getElementById('baygeP2Name') },
     };
 
     const post = async (url, payload) => {
@@ -137,21 +154,27 @@ window.addEventListener('load', () => {
     document.getElementById('kickMicP2').addEventListener('click', () => kick('mic', 2));
     document.getElementById('kickMotionP1').addEventListener('click', () => kick('motion', 1));
     document.getElementById('kickMotionP2').addEventListener('click', () => kick('motion', 2));
+    document.getElementById('kickBaygeP1').addEventListener('click', () => kick('bayge', 1));
+    document.getElementById('kickBaygeP2').addEventListener('click', () => kick('bayge', 2));
 
     if (window.Echo) {
         window.Echo.channel(`room.${roomId}.mic`)
             .listen('.players.updated', (event) => renderPlayers('mic', event.players ?? []));
         window.Echo.channel(`room.${roomId}.motion`)
             .listen('.players.updated', (event) => renderPlayers('motion', event.players ?? []));
+        window.Echo.channel(`room.${roomId}.bayge`)
+            .listen('.players.updated', (event) => renderPlayers('bayge', event.players ?? []));
     }
 
     setInterval(() => {
         syncMode('mic');
         syncMode('motion');
+        syncMode('bayge');
     }, 8000);
 
     syncMode('mic');
     syncMode('motion');
+    syncMode('bayge');
 });
 </script>
 </body>

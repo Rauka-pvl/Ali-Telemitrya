@@ -6,6 +6,7 @@ use App\Events\RoomMicLevelUpdated;
 use App\Events\RoomMovementUpdated;
 use App\Events\RoomPlayersUpdated;
 use App\Events\RoomTelemetryUpdated;
+use App\Models\RoomGame;
 use App\Models\RoomKey;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -39,23 +40,33 @@ class RoomController extends Controller
 
     public function rooms(string $roomId): View
     {
-        $this->ensureRoomExistsOrAbort($roomId);
+        $room = $this->findRoomOrAbort($roomId);
 
-        return view('rooms-selector', ['roomId' => $roomId]);
+        return view('rooms-selector', [
+            'roomId' => $roomId,
+            'games' => $this->gamesForSelector($room),
+        ]);
     }
 
     public function gameMic(string $roomId): View
     {
-        $this->ensureRoomExistsOrAbort($roomId);
+        $this->ensureGameAccessOrAbort($roomId, RoomGame::KYZ);
 
         return view('room-game-mic', ['roomId' => $roomId]);
     }
 
     public function gameMotion(string $roomId): View
     {
-        $this->ensureRoomExistsOrAbort($roomId);
+        $this->ensureGameAccessOrAbort($roomId, RoomGame::ARKAN);
 
         return view('room-game-motion', ['roomId' => $roomId]);
+    }
+
+    public function gameBayge(string $roomId): View
+    {
+        $this->ensureGameAccessOrAbort($roomId, RoomGame::BAYGE);
+
+        return view('room-game-bayge', ['roomId' => $roomId]);
     }
 
     public function player(string $roomId): View
@@ -79,6 +90,10 @@ class RoomController extends Controller
         }
 
         $mode = $this->validatedMode($request);
+        if ($response = $this->ensureModeGameAccessOrJson($roomId, $mode)) {
+            return $response;
+        }
+
         $validated = $request->validate([
             'clientId' => ['required', 'string', 'max:100'],
             'name' => ['required', 'string', 'max:100'],
@@ -137,6 +152,10 @@ class RoomController extends Controller
         }
 
         $mode = $this->validatedMode($request);
+        if ($response = $this->ensureModeGameAccessOrJson($roomId, $mode)) {
+            return $response;
+        }
+
         $validated = $request->validate([
             'clientId' => ['required', 'string', 'max:100'],
         ]);
@@ -162,6 +181,10 @@ class RoomController extends Controller
         }
 
         $mode = $this->validatedMode($request);
+        if ($response = $this->ensureModeGameAccessOrJson($roomId, $mode)) {
+            return $response;
+        }
+
         $validated = $request->validate([
             'clientId' => ['required', 'string', 'max:100'],
         ]);
@@ -186,6 +209,10 @@ class RoomController extends Controller
         }
 
         $mode = $this->validatedMode($request);
+        if ($response = $this->ensureModeGameAccessOrJson($roomId, $mode)) {
+            return $response;
+        }
+
         $validated = $request->validate([
             'playerIndex' => ['required', 'integer', 'in:1,2'],
         ]);
@@ -211,6 +238,10 @@ class RoomController extends Controller
         }
 
         $mode = $this->validatedMode($request);
+        if ($response = $this->ensureModeGameAccessOrJson($roomId, $mode)) {
+            return $response;
+        }
+
         $validated = $request->validate([
             'clientId' => ['required', 'string', 'max:100'],
             'x' => ['required', 'numeric'],
@@ -247,6 +278,10 @@ class RoomController extends Controller
         }
 
         $mode = $this->validatedMode($request);
+        if ($response = $this->ensureModeGameAccessOrJson($roomId, $mode)) {
+            return $response;
+        }
+
         $validated = $request->validate([
             'clientId' => ['required', 'string', 'max:100'],
             'level' => ['required', 'numeric', 'min:0'],
@@ -277,9 +312,13 @@ class RoomController extends Controller
         }
 
         $mode = $this->validatedMode($request);
+        if ($response = $this->ensureModeGameAccessOrJson($roomId, $mode)) {
+            return $response;
+        }
+
         $validated = $request->validate([
             'clientId' => ['required', 'string', 'max:100'],
-            'source' => ['required', 'string', 'in:mic,motion'],
+            'source' => ['required', 'string', 'in:mic,motion,bayge'],
             'movement' => ['required', 'numeric', 'min:0'],
             'hz' => ['nullable', 'numeric', 'min:0'],
             'magnitude' => ['nullable', 'numeric', 'min:0'],
@@ -312,6 +351,10 @@ class RoomController extends Controller
         }
 
         $mode = $this->validatedMode($request);
+        if ($response = $this->ensureModeGameAccessOrJson($roomId, $mode)) {
+            return $response;
+        }
+
         $state = $this->activePlayersState($roomId, $mode);
         $this->persistPlayersState($roomId, $mode, $state);
         $players = $this->playersPayload($state);
@@ -349,6 +392,7 @@ class RoomController extends Controller
         return response()->json([
             'ok' => true,
             'name' => $room->name,
+            'games' => $room->allowedGameSlugs(),
         ]);
     }
 
@@ -423,18 +467,94 @@ class RoomController extends Controller
     private function validatedMode(Request $request): string
     {
         $mode = (string) $request->input('mode', '');
-        if (! in_array($mode, ['mic', 'motion'], true)) {
-            abort(422, 'mode must be mic or motion');
+        if (! in_array($mode, ['mic', 'motion', 'bayge'], true)) {
+            abort(422, 'mode must be mic, motion or bayge');
         }
 
         return $mode;
     }
 
-    private function ensureRoomExistsOrAbort(string $roomId): void
+    private function findRoomOrAbort(string $roomId): RoomKey
     {
-        if (! RoomKey::query()->where('room_id', $roomId)->exists()) {
+        $room = RoomKey::query()->where('room_id', $roomId)->first();
+
+        if ($room === null) {
             abort(404, 'Комната не найдена');
         }
+
+        return $room;
+    }
+
+    /**
+     * @return list<array{slug: string, label: string, url: string}>
+     */
+    private function gamesForSelector(RoomKey $room): array
+    {
+        $catalog = RoomGame::catalog();
+
+        return collect($room->allowedGameSlugs())
+            ->map(function (string $slug) use ($catalog, $room): ?array {
+                $meta = $catalog[$slug] ?? null;
+                if ($meta === null) {
+                    return null;
+                }
+
+                return [
+                    'slug' => $slug,
+                    'label' => $meta['label'],
+                    'url' => url("/room/game/{$meta['path']}/{$room->room_id}"),
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    private function ensureGameAccessOrAbort(string $roomId, string $game): RoomKey
+    {
+        $room = $this->findRoomOrAbort($roomId);
+
+        if (! $room->hasGame($game)) {
+            abort(403, 'Нет доступа к этой игре');
+        }
+
+        return $room;
+    }
+
+    private function gameSlugForMode(string $mode): string
+    {
+        return match ($mode) {
+            'mic' => RoomGame::KYZ,
+            'motion' => RoomGame::ARKAN,
+            'bayge' => RoomGame::BAYGE,
+            default => abort(422, 'Invalid mode'),
+        };
+    }
+
+    private function ensureModeGameAccessOrJson(string $roomId, string $mode): ?JsonResponse
+    {
+        $room = RoomKey::query()->where('room_id', $roomId)->first();
+
+        if ($room === null) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Room key not found',
+            ], 404);
+        }
+
+        if (! $room->hasGame($this->gameSlugForMode($mode))) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Нет доступа к этой игре',
+            ], 403);
+        }
+
+        return null;
+    }
+
+    private function ensureRoomExistsOrAbort(string $roomId): void
+    {
+        $this->findRoomOrAbort($roomId);
     }
 
     private function ensureRoomExistsOrJson(string $roomId): ?JsonResponse

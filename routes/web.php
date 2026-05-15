@@ -13,6 +13,7 @@ Route::get('/rooms/{roomId}', [RoomController::class, 'rooms']);
 Route::get('/room/game/{roomId}', [RoomController::class, 'game']);
 Route::get('/room/game/mic/{roomId}', [RoomController::class, 'gameMic']);
 Route::get('/room/game/motion/{roomId}', [RoomController::class, 'gameMotion']);
+Route::get('/room/game/bayge/{roomId}', [RoomController::class, 'gameBayge']);
 Route::get('/room/admin/{roomId}', [RoomController::class, 'roomAdmin']);
 Route::get('/room/player/{roomId}', [RoomController::class, 'player']);
 Route::post('/room/{roomId}/player/join', [RoomController::class, 'playerJoin']);

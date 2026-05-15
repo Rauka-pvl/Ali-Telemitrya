@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Аркан тарту {{ $roomId }}</title>
+    <title>Байге {{ $roomId }}</title>
     @vite(['resources/js/app.js'])
     <style>
         * { box-sizing: border-box; }
@@ -43,7 +43,7 @@
 </head>
 <body>
 <div class="container">
-    <h1>Режим: Аркан тарту</h1>
+    <h1>Режим: Байге</h1>
     <div class="subtitle">Комната: {{ $roomId }}</div>
 
     <div class="card">
@@ -75,10 +75,10 @@
 <script>
 window.addEventListener('load', () => {
     const roomId = @json($roomId);
-    const mode = 'motion';
+    const mode = 'bayge';
     const csrfToken = '{{ csrf_token() }}';
-    const clientId = localStorage.getItem(`motion_client_id_${roomId}`) ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    localStorage.setItem(`motion_client_id_${roomId}`, clientId);
+    const clientId = localStorage.getItem(`bayge_client_id_${roomId}`) ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    localStorage.setItem(`bayge_client_id_${roomId}`, clientId);
     let joined = false;
     let heartbeatTimer = null;
     let lastSentAt = 0;
@@ -155,7 +155,7 @@ window.addEventListener('load', () => {
         if (now - lastSentAt >= 80 && changedEnough) {
             lastSentAt = now;
             lastSentMovement = movement;
-            post(`/room/${roomId}/movement`, { clientId, source:'motion', movement, magnitude, ts:now }).catch(() => {});
+            post(`/room/${roomId}/movement`, { clientId, source:'bayge', movement, magnitude, ts:now }).catch(() => {});
         }
     };
 

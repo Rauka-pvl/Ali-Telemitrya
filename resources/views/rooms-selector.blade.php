@@ -23,8 +23,9 @@
         .card { background: linear-gradient(180deg, var(--surface) 0%, var(--surface-soft) 100%); border:1px solid var(--border); border-radius:14px; padding:18px; margin-top:12px; }
         h1 { margin: 0 0 8px; font-size: 32px; }
         .subtitle { color: var(--muted); margin-bottom: 16px; }
-        .buttons { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+        .buttons { display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:12px; }
         a { text-decoration:none; display:block; text-align:center; padding:14px 16px; border-radius:10px; color:#fff; font-weight:700; background: linear-gradient(180deg, #6c96ff 0%, #4f76df 100%); }
+        .empty { color: var(--muted); text-align: center; padding: 8px 0; }
         @media (max-width:640px){ .container{padding:14px;} h1{font-size:26px;} .buttons{grid-template-columns:1fr;} }
     </style>
 </head>
@@ -33,10 +34,15 @@
     <h1>Выбор режима</h1>
     <div class="subtitle">Комната: {{ $roomId }}</div>
     <div class="card">
-        <div class="buttons">
-            <a href="/room/game/mic/{{ $roomId }}">Микрофон</a>
-            <a href="/room/game/motion/{{ $roomId }}">Движение</a>
-        </div>
+        @if (count($games) > 0)
+            <div class="buttons">
+                @foreach ($games as $game)
+                    <a href="{{ $game['url'] }}">{{ $game['label'] }}</a>
+                @endforeach
+            </div>
+        @else
+            <p class="empty">Для этого ключа нет доступных игр.</p>
+        @endif
     </div>
 </div>
 </body>
