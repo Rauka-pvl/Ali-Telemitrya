@@ -90,6 +90,23 @@
         </div>
     </div>
 
+
+    <div class="card">
+        <div class="label">Режим: Той Drive</div>
+        <div class="mode-grid">
+            <div class="card" style="margin-top:0;">
+                <div class="slot-title">P1</div>
+                <div id="driveP1Name" class="slot-name slot-empty">Ожидание...</div>
+                <button id="kickDriveP1">Выгнать P1 (Той Drive)</button>
+            </div>
+            <div class="card" style="margin-top:0;">
+                <div class="slot-title">P2</div>
+                <div id="driveP2Name" class="slot-name slot-empty">Ожидание...</div>
+                <button id="kickDriveP2">Выгнать P2 (Той Drive)</button>
+            </div>
+        </div>
+    </div>
+
     <div id="adminLog" class="mono">Готово к управлению слотами.</div>
 </div>
 
@@ -103,6 +120,7 @@ window.addEventListener('load', () => {
         mic: { 1: document.getElementById('micP1Name'), 2: document.getElementById('micP2Name') },
         motion: { 1: document.getElementById('motionP1Name'), 2: document.getElementById('motionP2Name') },
         bayge: { 1: document.getElementById('baygeP1Name'), 2: document.getElementById('baygeP2Name') },
+        drive: { 1: document.getElementById('driveP1Name'), 2: document.getElementById('driveP2Name') },
     };
 
     const post = async (url, payload) => {
@@ -156,6 +174,8 @@ window.addEventListener('load', () => {
     document.getElementById('kickMotionP2').addEventListener('click', () => kick('motion', 2));
     document.getElementById('kickBaygeP1').addEventListener('click', () => kick('bayge', 1));
     document.getElementById('kickBaygeP2').addEventListener('click', () => kick('bayge', 2));
+    document.getElementById('kickDriveP1').addEventListener('click', () => kick('drive', 1));
+    document.getElementById('kickDriveP2').addEventListener('click', () => kick('drive', 2));
 
     if (window.Echo) {
         window.Echo.channel(`room.${roomId}.mic`)
@@ -164,17 +184,21 @@ window.addEventListener('load', () => {
             .listen('.players.updated', (event) => renderPlayers('motion', event.players ?? []));
         window.Echo.channel(`room.${roomId}.bayge`)
             .listen('.players.updated', (event) => renderPlayers('bayge', event.players ?? []));
+        window.Echo.channel(`room.${roomId}.drive`)
+            .listen('.players.updated', (event) => renderPlayers('drive', event.players ?? []));
     }
 
     setInterval(() => {
         syncMode('mic');
         syncMode('motion');
         syncMode('bayge');
+        syncMode('drive');
     }, 8000);
 
     syncMode('mic');
     syncMode('motion');
     syncMode('bayge');
+    syncMode('drive');
 });
 </script>
 </body>

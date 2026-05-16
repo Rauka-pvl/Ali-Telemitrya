@@ -13,6 +13,8 @@ class RoomGame extends Model
 
     public const BAYGE = 'bayge';
 
+    public const DRIVE = 'drive';
+
     protected $table = 'room_game';
 
     protected $fillable = [
@@ -37,6 +39,10 @@ class RoomGame extends Model
             self::BAYGE => [
                 'label' => 'Байге',
                 'path' => 'bayge',
+            ],
+            self::DRIVE => [
+                'label' => 'Той Drive',
+                'path' => 'drive',
             ],
         ];
     }

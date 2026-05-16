@@ -69,6 +69,13 @@ class RoomController extends Controller
         return view('room-game-bayge', ['roomId' => $roomId]);
     }
 
+    public function gameDrive(string $roomId): View
+    {
+        $this->ensureGameAccessOrAbort($roomId, RoomGame::DRIVE);
+
+        return view('room-game-drive', ['roomId' => $roomId]);
+    }
+
     public function player(string $roomId): View
     {
         $this->ensureRoomExistsOrAbort($roomId);
@@ -318,7 +325,7 @@ class RoomController extends Controller
 
         $validated = $request->validate([
             'clientId' => ['required', 'string', 'max:100'],
-            'source' => ['required', 'string', 'in:mic,motion,bayge'],
+            'source' => ['required', 'string', 'in:mic,motion,bayge,drive'],
             'movement' => ['required', 'numeric', 'min:0'],
             'hz' => ['nullable', 'numeric', 'min:0'],
             'magnitude' => ['nullable', 'numeric', 'min:0'],
@@ -467,8 +474,8 @@ class RoomController extends Controller
     private function validatedMode(Request $request): string
     {
         $mode = (string) $request->input('mode', '');
-        if (! in_array($mode, ['mic', 'motion', 'bayge'], true)) {
-            abort(422, 'mode must be mic, motion or bayge');
+        if (! in_array($mode, ['mic', 'motion', 'bayge', 'drive'], true)) {
+            abort(422, 'mode must be mic, motion, bayge or drive');
         }
 
         return $mode;
@@ -527,6 +534,7 @@ class RoomController extends Controller
             'mic' => RoomGame::KYZ,
             'motion' => RoomGame::ARKAN,
             'bayge' => RoomGame::BAYGE,
+            'drive' => RoomGame::DRIVE,
             default => abort(422, 'Invalid mode'),
         };
     }
