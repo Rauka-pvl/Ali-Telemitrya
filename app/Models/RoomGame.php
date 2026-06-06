@@ -15,6 +15,10 @@ class RoomGame extends Model
 
     public const DRIVE = 'drive';
 
+    public const PING = 'ping';
+
+    public const TRAVEL = 'travel';
+
     protected $table = 'room_game';
 
     protected $fillable = [
@@ -43,6 +47,14 @@ class RoomGame extends Model
             self::DRIVE => [
                 'label' => 'Той Drive',
                 'path' => 'drive',
+            ],
+            self::PING => [
+                'label' => 'Пинг Понг',
+                'path' => 'ping',
+            ],
+            self::TRAVEL => [
+                'label' => 'Күс travel',
+                'path' => 'travel',
             ],
         ];
     }

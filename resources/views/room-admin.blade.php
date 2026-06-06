@@ -107,6 +107,38 @@
         </div>
     </div>
 
+    <div class="card">
+        <div class="label">Режим: Пинг Понг</div>
+        <div class="mode-grid">
+            <div class="card" style="margin-top:0;">
+                <div class="slot-title">P1</div>
+                <div id="pingP1Name" class="slot-name slot-empty">Ожидание...</div>
+                <button id="kickPingP1">Выгнать P1 (Пинг Понг)</button>
+            </div>
+            <div class="card" style="margin-top:0;">
+                <div class="slot-title">P2</div>
+                <div id="pingP2Name" class="slot-name slot-empty">Ожидание...</div>
+                <button id="kickPingP2">Выгнать P2 (Пинг Понг)</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="label">Режим: Күс travel</div>
+        <div class="mode-grid">
+            <div class="card" style="margin-top:0;">
+                <div class="slot-title">P1</div>
+                <div id="travelP1Name" class="slot-name slot-empty">Ожидание...</div>
+                <button id="kickTravelP1">Выгнать P1 (Күс travel)</button>
+            </div>
+            <div class="card" style="margin-top:0;">
+                <div class="slot-title">P2</div>
+                <div id="travelP2Name" class="slot-name slot-empty">Ожидание...</div>
+                <button id="kickTravelP2">Выгнать P2 (Күс travel)</button>
+            </div>
+        </div>
+    </div>
+
     <div id="adminLog" class="mono">Готово к управлению слотами.</div>
 </div>
 
@@ -121,6 +153,8 @@ window.addEventListener('load', () => {
         motion: { 1: document.getElementById('motionP1Name'), 2: document.getElementById('motionP2Name') },
         bayge: { 1: document.getElementById('baygeP1Name'), 2: document.getElementById('baygeP2Name') },
         drive: { 1: document.getElementById('driveP1Name'), 2: document.getElementById('driveP2Name') },
+        ping: { 1: document.getElementById('pingP1Name'), 2: document.getElementById('pingP2Name') },
+        travel: { 1: document.getElementById('travelP1Name'), 2: document.getElementById('travelP2Name') },
     };
 
     const post = async (url, payload) => {
@@ -176,6 +210,10 @@ window.addEventListener('load', () => {
     document.getElementById('kickBaygeP2').addEventListener('click', () => kick('bayge', 2));
     document.getElementById('kickDriveP1').addEventListener('click', () => kick('drive', 1));
     document.getElementById('kickDriveP2').addEventListener('click', () => kick('drive', 2));
+    document.getElementById('kickPingP1').addEventListener('click', () => kick('ping', 1));
+    document.getElementById('kickPingP2').addEventListener('click', () => kick('ping', 2));
+    document.getElementById('kickTravelP1').addEventListener('click', () => kick('travel', 1));
+    document.getElementById('kickTravelP2').addEventListener('click', () => kick('travel', 2));
 
     if (window.Echo) {
         window.Echo.channel(`room.${roomId}.mic`)
@@ -186,6 +224,10 @@ window.addEventListener('load', () => {
             .listen('.players.updated', (event) => renderPlayers('bayge', event.players ?? []));
         window.Echo.channel(`room.${roomId}.drive`)
             .listen('.players.updated', (event) => renderPlayers('drive', event.players ?? []));
+        window.Echo.channel(`room.${roomId}.ping`)
+            .listen('.players.updated', (event) => renderPlayers('ping', event.players ?? []));
+        window.Echo.channel(`room.${roomId}.travel`)
+            .listen('.players.updated', (event) => renderPlayers('travel', event.players ?? []));
     }
 
     setInterval(() => {
@@ -193,12 +235,16 @@ window.addEventListener('load', () => {
         syncMode('motion');
         syncMode('bayge');
         syncMode('drive');
+        syncMode('ping');
+        syncMode('travel');
     }, 8000);
 
     syncMode('mic');
     syncMode('motion');
     syncMode('bayge');
     syncMode('drive');
+    syncMode('ping');
+    syncMode('travel');
 });
 </script>
 </body>

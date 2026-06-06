@@ -15,6 +15,8 @@ Route::get('/room/game/mic/{roomId}', [RoomController::class, 'gameMic']);
 Route::get('/room/game/motion/{roomId}', [RoomController::class, 'gameMotion']);
 Route::get('/room/game/bayge/{roomId}', [RoomController::class, 'gameBayge']);
 Route::get('/room/game/drive/{roomId}', [RoomController::class, 'gameDrive']);
+Route::get('/room/game/ping/{roomId}', [RoomController::class, 'gamePing']);
+Route::get('/room/game/travel/{roomId}', [RoomController::class, 'gameTravel']);
 Route::get('/room/admin/{roomId}', [RoomController::class, 'roomAdmin']);
 Route::get('/room/player/{roomId}', [RoomController::class, 'player']);
 Route::post('/room/{roomId}/player/join', [RoomController::class, 'playerJoin']);
