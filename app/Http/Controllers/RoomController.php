@@ -99,9 +99,12 @@ class RoomController extends Controller
 
     public function roomAdmin(string $roomId): View
     {
-        $this->ensureRoomExistsOrAbort($roomId);
+        $room = $this->findRoomOrAbort($roomId);
 
-        return view('room-admin', ['roomId' => $roomId]);
+        return view('room-admin', [
+            'roomId' => $roomId,
+            'games' => $this->allowedGames($room),
+        ]);
     }
 
     public function playerJoin(Request $request, string $roomId): JsonResponse
@@ -507,14 +510,14 @@ class RoomController extends Controller
     }
 
     /**
-     * @return list<array{slug: string, label: string, url: string}>
+     * @return list<array{slug: string, label: string, mode: string}>
      */
-    private function gamesForSelector(RoomKey $room): array
+    private function allowedGames(RoomKey $room): array
     {
         $catalog = RoomGame::catalog();
 
         return collect($room->allowedGameSlugs())
-            ->map(function (string $slug) use ($catalog, $room): ?array {
+            ->map(function (string $slug) use ($catalog): ?array {
                 $meta = $catalog[$slug] ?? null;
                 if ($meta === null) {
                     return null;
@@ -523,11 +526,24 @@ class RoomController extends Controller
                 return [
                     'slug' => $slug,
                     'label' => $meta['label'],
-                    'url' => url("/room/game/{$meta['path']}/{$room->room_id}"),
+                    'mode' => $meta['path'],
                 ];
             })
             ->filter()
             ->values()
+            ->all();
+    }
+
+    /**
+     * @return list<array{slug: string, label: string, mode: string, url: string}>
+     */
+    private function gamesForSelector(RoomKey $room): array
+    {
+        return collect($this->allowedGames($room))
+            ->map(fn (array $game): array => [
+                ...$game,
+                'url' => url("/room/game/{$game['mode']}/{$room->room_id}"),
+            ])
             ->all();
     }
 

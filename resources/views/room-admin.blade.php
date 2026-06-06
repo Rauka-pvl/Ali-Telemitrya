@@ -33,6 +33,7 @@
         .slot-full { color:var(--ok); }
         button { width:100%; border:none; border-radius:10px; padding:10px 12px; font-size:14px; color:#fff; font-weight:700; cursor:pointer; background:linear-gradient(180deg,var(--danger) 0%, #b84343 100%); }
         .mono { font-family: Menlo, Monaco, monospace; font-size:13px; line-height:1.5; color:var(--muted); margin-top:10px; }
+        .empty { color:var(--muted); text-align:center; padding:12px 0; }
         @media (max-width:900px){ .mode-grid{grid-template-columns:1fr;} }
         @media (max-width:640px){ .container{padding:14px;} h1{font-size:26px;} .slot-name{font-size:20px;} }
     </style>
@@ -42,102 +43,31 @@
     <h1>Админ-панель комнаты</h1>
     <div class="subtitle">Комната: {{ $roomId }}</div>
 
-    <div class="card">
-        <div class="label">Режим: Кыз куу</div>
-        <div class="mode-grid">
-            <div class="card" style="margin-top:0;">
-                <div class="slot-title">P1</div>
-                <div id="micP1Name" class="slot-name slot-empty">Ожидание...</div>
-                <button id="kickMicP1">Выгнать P1 (Кыз куу)</button>
-            </div>
-            <div class="card" style="margin-top:0;">
-                <div class="slot-title">P2</div>
-                <div id="micP2Name" class="slot-name slot-empty">Ожидание...</div>
-                <button id="kickMicP2">Выгнать P2 (Кыз куу)</button>
-            </div>
-        </div>
-    </div>
-
-    <div class="card">
-        <div class="label">Режим: Аркан тарту</div>
-        <div class="mode-grid">
-            <div class="card" style="margin-top:0;">
-                <div class="slot-title">P1</div>
-                <div id="motionP1Name" class="slot-name slot-empty">Ожидание...</div>
-                <button id="kickMotionP1">Выгнать P1 (Аркан тарту)</button>
-            </div>
-            <div class="card" style="margin-top:0;">
-                <div class="slot-title">P2</div>
-                <div id="motionP2Name" class="slot-name slot-empty">Ожидание...</div>
-                <button id="kickMotionP2">Выгнать P2 (Аркан тарту)</button>
+    @forelse ($games as $game)
+        <div class="card">
+            <div class="label">Режим: {{ $game['label'] }}</div>
+            <div class="mode-grid">
+                <div class="card" style="margin-top:0;">
+                    <div class="slot-title">P1</div>
+                    <div id="{{ $game['mode'] }}P1Name" class="slot-name slot-empty">Ожидание...</div>
+                    <button id="kick{{ ucfirst($game['mode']) }}P1" data-mode="{{ $game['mode'] }}" data-player="1">
+                        Выгнать P1 ({{ $game['label'] }})
+                    </button>
+                </div>
+                <div class="card" style="margin-top:0;">
+                    <div class="slot-title">P2</div>
+                    <div id="{{ $game['mode'] }}P2Name" class="slot-name slot-empty">Ожидание...</div>
+                    <button id="kick{{ ucfirst($game['mode']) }}P2" data-mode="{{ $game['mode'] }}" data-player="2">
+                        Выгнать P2 ({{ $game['label'] }})
+                    </button>
+                </div>
             </div>
         </div>
-    </div>
-
-    <div class="card">
-        <div class="label">Режим: Байге</div>
-        <div class="mode-grid">
-            <div class="card" style="margin-top:0;">
-                <div class="slot-title">P1</div>
-                <div id="baygeP1Name" class="slot-name slot-empty">Ожидание...</div>
-                <button id="kickBaygeP1">Выгнать P1 (Байге)</button>
-            </div>
-            <div class="card" style="margin-top:0;">
-                <div class="slot-title">P2</div>
-                <div id="baygeP2Name" class="slot-name slot-empty">Ожидание...</div>
-                <button id="kickBaygeP2">Выгнать P2 (Байге)</button>
-            </div>
+    @empty
+        <div class="card">
+            <p class="empty">Для этого ключа нет доступных игр.</p>
         </div>
-    </div>
-
-
-    <div class="card">
-        <div class="label">Режим: Той Drive</div>
-        <div class="mode-grid">
-            <div class="card" style="margin-top:0;">
-                <div class="slot-title">P1</div>
-                <div id="driveP1Name" class="slot-name slot-empty">Ожидание...</div>
-                <button id="kickDriveP1">Выгнать P1 (Той Drive)</button>
-            </div>
-            <div class="card" style="margin-top:0;">
-                <div class="slot-title">P2</div>
-                <div id="driveP2Name" class="slot-name slot-empty">Ожидание...</div>
-                <button id="kickDriveP2">Выгнать P2 (Той Drive)</button>
-            </div>
-        </div>
-    </div>
-
-    <div class="card">
-        <div class="label">Режим: Пинг Понг</div>
-        <div class="mode-grid">
-            <div class="card" style="margin-top:0;">
-                <div class="slot-title">P1</div>
-                <div id="pingP1Name" class="slot-name slot-empty">Ожидание...</div>
-                <button id="kickPingP1">Выгнать P1 (Пинг Понг)</button>
-            </div>
-            <div class="card" style="margin-top:0;">
-                <div class="slot-title">P2</div>
-                <div id="pingP2Name" class="slot-name slot-empty">Ожидание...</div>
-                <button id="kickPingP2">Выгнать P2 (Пинг Понг)</button>
-            </div>
-        </div>
-    </div>
-
-    <div class="card">
-        <div class="label">Режим: Күс travel</div>
-        <div class="mode-grid">
-            <div class="card" style="margin-top:0;">
-                <div class="slot-title">P1</div>
-                <div id="travelP1Name" class="slot-name slot-empty">Ожидание...</div>
-                <button id="kickTravelP1">Выгнать P1 (Күс travel)</button>
-            </div>
-            <div class="card" style="margin-top:0;">
-                <div class="slot-title">P2</div>
-                <div id="travelP2Name" class="slot-name slot-empty">Ожидание...</div>
-                <button id="kickTravelP2">Выгнать P2 (Күс travel)</button>
-            </div>
-        </div>
-    </div>
+    @endforelse
 
     <div id="adminLog" class="mono">Готово к управлению слотами.</div>
 </div>
@@ -145,17 +75,17 @@
 <script>
 window.addEventListener('load', () => {
     const roomId = @json($roomId);
+    const games = @json($games);
     const csrfToken = '{{ csrf_token() }}';
     const adminLog = document.getElementById('adminLog');
 
-    const slots = {
-        mic: { 1: document.getElementById('micP1Name'), 2: document.getElementById('micP2Name') },
-        motion: { 1: document.getElementById('motionP1Name'), 2: document.getElementById('motionP2Name') },
-        bayge: { 1: document.getElementById('baygeP1Name'), 2: document.getElementById('baygeP2Name') },
-        drive: { 1: document.getElementById('driveP1Name'), 2: document.getElementById('driveP2Name') },
-        ping: { 1: document.getElementById('pingP1Name'), 2: document.getElementById('pingP2Name') },
-        travel: { 1: document.getElementById('travelP1Name'), 2: document.getElementById('travelP2Name') },
-    };
+    const slots = {};
+    games.forEach(({ mode }) => {
+        slots[mode] = {
+            1: document.getElementById(`${mode}P1Name`),
+            2: document.getElementById(`${mode}P2Name`),
+        };
+    });
 
     const post = async (url, payload) => {
         const response = await fetch(url, {
@@ -173,7 +103,8 @@ window.addEventListener('load', () => {
     const renderPlayers = (mode, players) => {
         const map = new Map((players ?? []).map((p) => [p.playerIndex, p.name]));
         [1, 2].forEach((idx) => {
-            const el = slots[mode][idx];
+            const el = slots[mode]?.[idx];
+            if (!el) return;
             const name = map.get(idx);
             if (name) {
                 el.textContent = name;
@@ -202,49 +133,29 @@ window.addEventListener('load', () => {
             .catch((error) => { adminLog.textContent = `Ошибка kick: ${error?.message ?? error}`; });
     };
 
-    document.getElementById('kickMicP1').addEventListener('click', () => kick('mic', 1));
-    document.getElementById('kickMicP2').addEventListener('click', () => kick('mic', 2));
-    document.getElementById('kickMotionP1').addEventListener('click', () => kick('motion', 1));
-    document.getElementById('kickMotionP2').addEventListener('click', () => kick('motion', 2));
-    document.getElementById('kickBaygeP1').addEventListener('click', () => kick('bayge', 1));
-    document.getElementById('kickBaygeP2').addEventListener('click', () => kick('bayge', 2));
-    document.getElementById('kickDriveP1').addEventListener('click', () => kick('drive', 1));
-    document.getElementById('kickDriveP2').addEventListener('click', () => kick('drive', 2));
-    document.getElementById('kickPingP1').addEventListener('click', () => kick('ping', 1));
-    document.getElementById('kickPingP2').addEventListener('click', () => kick('ping', 2));
-    document.getElementById('kickTravelP1').addEventListener('click', () => kick('travel', 1));
-    document.getElementById('kickTravelP2').addEventListener('click', () => kick('travel', 2));
+    document.querySelectorAll('[data-mode][data-player]').forEach((button) => {
+        button.addEventListener('click', () => {
+            kick(button.dataset.mode, Number(button.dataset.player));
+        });
+    });
 
     if (window.Echo) {
-        window.Echo.channel(`room.${roomId}.mic`)
-            .listen('.players.updated', (event) => renderPlayers('mic', event.players ?? []));
-        window.Echo.channel(`room.${roomId}.motion`)
-            .listen('.players.updated', (event) => renderPlayers('motion', event.players ?? []));
-        window.Echo.channel(`room.${roomId}.bayge`)
-            .listen('.players.updated', (event) => renderPlayers('bayge', event.players ?? []));
-        window.Echo.channel(`room.${roomId}.drive`)
-            .listen('.players.updated', (event) => renderPlayers('drive', event.players ?? []));
-        window.Echo.channel(`room.${roomId}.ping`)
-            .listen('.players.updated', (event) => renderPlayers('ping', event.players ?? []));
-        window.Echo.channel(`room.${roomId}.travel`)
-            .listen('.players.updated', (event) => renderPlayers('travel', event.players ?? []));
+        games.forEach(({ mode }) => {
+            window.Echo.channel(`room.${roomId}.${mode}`)
+                .listen('.players.updated', (event) => renderPlayers(mode, event.players ?? []));
+        });
+    }
+
+    if (games.length === 0) {
+        adminLog.textContent = 'Нет доступных игр для управления.';
+        return;
     }
 
     setInterval(() => {
-        syncMode('mic');
-        syncMode('motion');
-        syncMode('bayge');
-        syncMode('drive');
-        syncMode('ping');
-        syncMode('travel');
+        games.forEach(({ mode }) => syncMode(mode));
     }, 8000);
 
-    syncMode('mic');
-    syncMode('motion');
-    syncMode('bayge');
-    syncMode('drive');
-    syncMode('ping');
-    syncMode('travel');
+    games.forEach(({ mode }) => syncMode(mode));
 });
 </script>
 </body>
