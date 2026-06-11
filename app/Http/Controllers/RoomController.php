@@ -8,6 +8,7 @@ use App\Events\RoomPlayersUpdated;
 use App\Events\RoomTelemetryUpdated;
 use App\Models\RoomGame;
 use App\Models\RoomKey;
+use App\Services\RoomKeyAuthService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -16,6 +17,10 @@ use Illuminate\View\View;
 class RoomController extends Controller
 {
     private const ONLINE_TTL_SECONDS = 45;
+
+    public function __construct(
+        private readonly RoomKeyAuthService $roomKeyAuthService,
+    ) {}
 
     public function telemetry(string $roomId): View
     {
@@ -88,6 +93,13 @@ class RoomController extends Controller
         $this->ensureGameAccessOrAbort($roomId, RoomGame::TRAVEL);
 
         return view('room-game-travel', ['roomId' => $roomId]);
+    }
+
+    public function gameStick(string $roomId): View
+    {
+        $this->ensureGameAccessOrAbort($roomId, RoomGame::STICK);
+
+        return view('room-game-stick', ['roomId' => $roomId]);
     }
 
     public function player(string $roomId): View
@@ -413,6 +425,15 @@ class RoomController extends Controller
             ], 404);
         }
 
+        $authResult = $this->roomKeyAuthService->registerAuthAttempt($room, $request->ip());
+        if (! $authResult['allowed']) {
+            return response()->json([
+                'ok' => false,
+                'blocked' => true,
+                'message' => $authResult['message'],
+            ], 403);
+        }
+
         return response()->json([
             'ok' => true,
             'name' => $room->name,
@@ -491,8 +512,8 @@ class RoomController extends Controller
     private function validatedMode(Request $request): string
     {
         $mode = (string) $request->input('mode', '');
-        if (! in_array($mode, ['mic', 'motion', 'bayge', 'drive', 'ping', 'travel'], true)) {
-            abort(422, 'mode must be mic, motion, bayge, drive, ping or travel');
+        if (! in_array($mode, ['mic', 'motion', 'bayge', 'drive', 'ping', 'travel', 'stick'], true)) {
+            abort(422, 'mode must be mic, motion, bayge, drive, ping, travel or stick');
         }
 
         return $mode;
@@ -504,6 +525,10 @@ class RoomController extends Controller
 
         if ($room === null) {
             abort(404, 'Комната не найдена');
+        }
+
+        if ($room->isBlocked()) {
+            abort(403, 'Ключ заблокирован');
         }
 
         return $room;
@@ -567,6 +592,7 @@ class RoomController extends Controller
             'drive' => RoomGame::DRIVE,
             'ping' => RoomGame::PING,
             'travel' => RoomGame::TRAVEL,
+            'stick' => RoomGame::STICK,
             default => abort(422, 'Invalid mode'),
         };
     }
@@ -599,11 +625,21 @@ class RoomController extends Controller
 
     private function ensureRoomExistsOrJson(string $roomId): ?JsonResponse
     {
-        if (! RoomKey::query()->where('room_id', $roomId)->exists()) {
+        $room = RoomKey::query()->where('room_id', $roomId)->first();
+
+        if ($room === null) {
             return response()->json([
                 'ok' => false,
                 'message' => 'Room key not found',
             ], 404);
+        }
+
+        if ($room->isBlocked()) {
+            return response()->json([
+                'ok' => false,
+                'blocked' => true,
+                'message' => 'Ключ заблокирован',
+            ], 403);
         }
 
         return null;

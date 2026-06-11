@@ -10,7 +10,20 @@ class RoomKey extends Model
     protected $fillable = [
         'room_id',
         'name',
+        'block',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'block' => 'boolean',
+        ];
+    }
+
+    public function isBlocked(): bool
+    {
+        return (bool) $this->block;
+    }
 
     public function roomGames(): HasMany
     {

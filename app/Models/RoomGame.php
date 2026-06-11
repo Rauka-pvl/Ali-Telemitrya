@@ -19,6 +19,8 @@ class RoomGame extends Model
 
     public const TRAVEL = 'travel';
 
+    public const STICK = 'stick';
+
     protected $table = 'room_game';
 
     protected $fillable = [
@@ -55,6 +57,10 @@ class RoomGame extends Model
             self::TRAVEL => [
                 'label' => 'Күс travel',
                 'path' => 'travel',
+            ],
+            self::STICK => [
+                'label' => '1 палка',
+                'path' => 'stick',
             ],
         ];
     }
